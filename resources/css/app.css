@@ -23,16 +23,42 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /* 深緑ベースのカラーパレット */
+    --color-forest-50: #f0f7f4;
+    --color-forest-100: #dcefe3;
+    --color-forest-200: #badcc8;
+    --color-forest-300: #8cc2a2;
+    --color-forest-400: #5fa178;
+    --color-forest-500: #40855c;
+    --color-forest-600: #326b47;
+    --color-forest-700: #2a563a;
+    --color-forest-800: #234530;
+    --color-forest-900: #1e3928;
+    --color-forest-950: #0f1f16;
+
+    /* より洗練された深緑の色合い */
+    --color-sage-50: #f2f7f5;
+    --color-sage-100: #e0edea;
+    --color-sage-200: #c2dbd4;
+    --color-sage-300: #9bc2b9;
+    --color-sage-400: #6fa399;
+    --color-sage-500: #52877d;
+    --color-sage-600: #406e65;
+    --color-sage-700: #345853;
+    --color-sage-800: #2d4945;
+    --color-sage-900: #273d3a;
+    --color-sage-950: #14211f;
+
+    --color-accent: var(--color-forest-600);
+    --color-accent-content: var(--color-forest-600);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-sage-400);
+        --color-accent-content: var(--color-sage-400);
+        --color-accent-foreground: var(--color-forest-950);
     }
 }
 
@@ -52,7 +78,7 @@
 }
 
 [data-flux-label] {
-    @apply  !mb-0 !leading-tight;
+    @apply !mb-0 !leading-tight;
 }
 
 input:focus[data-flux-control],
@@ -64,3 +90,26 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* 認証画面用のカスタムスタイル */
+@layer components {
+    .auth-input {
+        @apply w-full px-4 py-3 rounded-xl border border-sage-300 dark:border-sage-600 bg-white dark:bg-forest-800 text-forest-900 dark:text-forest-100 placeholder-sage-500 dark:placeholder-sage-400 focus:ring-2 focus:ring-forest-500 focus:border-transparent transition-colors duration-200;
+    }
+
+    .auth-button {
+        @apply w-full bg-gradient-to-r from-forest-600 to-sage-600 hover:from-forest-700 hover:to-sage-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2 dark:focus:ring-offset-forest-900;
+    }
+
+    .auth-label {
+        @apply block text-sm font-medium text-forest-700 dark:text-forest-200;
+    }
+
+    .auth-link {
+        @apply text-forest-600 dark:text-forest-400 hover:text-forest-500 dark:hover:text-forest-300 font-medium transition-colors duration-200;
+    }
+
+    .auth-error {
+        @apply text-sm text-red-600 dark:text-red-400;
+    }
+}

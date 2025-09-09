@@ -29,7 +29,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        if (!Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -48,7 +48,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     protected function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
 
@@ -69,59 +69,73 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate(Str::lower($this->email) . '|' . request()->ip());
     }
 }; ?>
 
 <div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Log in to your account')" :description="__('Enter your email and password below to log in')" />
+    <x-auth-header :title="__('ログイン')" :description="__('メールアドレスとパスワードを入力してログインしてください')" />
 
     <!-- Session Status -->
     <x-auth-session-status class="text-center" :status="session('status')" />
 
     <form method="POST" wire:submit="login" class="flex flex-col gap-6">
         <!-- Email Address -->
-        <flux:input
-            wire:model="email"
-            :label="__('Email address')"
-            type="email"
-            required
-            autofocus
-            autocomplete="email"
-            placeholder="email@example.com"
-        />
+        <div class="space-y-2">
+            <label for="email" class="block text-sm font-medium text-forest-700 dark:text-forest-200">
+                {{ __('メールアドレス') }}
+            </label>
+            <input wire:model="email" id="email" type="email" required autofocus autocomplete="email"
+                placeholder="email@example.com"
+                class="w-full px-4 py-3 rounded-xl border border-sage-300 dark:border-sage-600 bg-white dark:bg-forest-800 text-forest-900 dark:text-forest-100 placeholder-sage-500 dark:placeholder-sage-400 focus:ring-2 focus:ring-forest-500 focus:border-transparent transition-colors duration-200" />
+            @error('email')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+        </div>
 
         <!-- Password -->
-        <div class="relative">
-            <flux:input
-                wire:model="password"
-                :label="__('Password')"
-                type="password"
-                required
-                autocomplete="current-password"
-                :placeholder="__('Password')"
-                viewable
-            />
-
-            @if (Route::has('password.request'))
-                <flux:link class="absolute end-0 top-0 text-sm" :href="route('password.request')" wire:navigate>
-                    {{ __('Forgot your password?') }}
-                </flux:link>
-            @endif
+        <div class="space-y-2">
+            <div class="flex justify-between items-center">
+                <label for="password" class="block text-sm font-medium text-forest-700 dark:text-forest-200">
+                    {{ __('パスワード') }}
+                </label>
+                @if (Route::has('password.request'))
+                    <a href="{{ route('password.request') }}" wire:navigate
+                        class="text-sm text-sage-600 dark:text-sage-400 hover:text-forest-600 dark:hover:text-forest-300 transition-colors duration-200">
+                        {{ __('パスワードを忘れた場合') }}
+                    </a>
+                @endif
+            </div>
+            <input wire:model="password" id="password" type="password" required autocomplete="current-password"
+                placeholder="{{ __('パスワード') }}"
+                class="w-full px-4 py-3 rounded-xl border border-sage-300 dark:border-sage-600 bg-white dark:bg-forest-800 text-forest-900 dark:text-forest-100 placeholder-sage-500 dark:placeholder-sage-400 focus:ring-2 focus:ring-forest-500 focus:border-transparent transition-colors duration-200" />
+            @error('password')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
         </div>
 
         <!-- Remember Me -->
-        <flux:checkbox wire:model="remember" :label="__('Remember me')" />
-
-        <div class="flex items-center justify-end">
-            <flux:button variant="primary" type="submit" class="w-full">{{ __('Log in') }}</flux:button>
+        <div class="flex items-center">
+            <input wire:model="remember" id="remember" type="checkbox"
+                class="h-4 w-4 text-forest-600 border-sage-300 dark:border-sage-600 rounded focus:ring-forest-500 dark:bg-forest-800" />
+            <label for="remember" class="ml-2 block text-sm text-sage-700 dark:text-sage-300">
+                {{ __('ログイン状態を保持する') }}
+            </label>
         </div>
+
+        <button type="submit"
+            class="w-full bg-gradient-to-r from-forest-600 to-sage-600 hover:from-forest-700 hover:to-sage-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2 dark:focus:ring-offset-forest-900">
+            {{ __('ログイン') }}
+        </button>
     </form>
 
     @if (Route::has('register'))
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-600 dark:text-zinc-400">
-            <span>{{ __('Don\'t have an account?') }}</span>
-            <flux:link :href="route('register')" wire:navigate>{{ __('Sign up') }}</flux:link>
+        <div class="text-center text-sm">
+            <span class="text-sage-600 dark:text-sage-400">{{ __('アカウントをお持ちでない方は') }}</span>
+            <a href="{{ route('register') }}" wire:navigate
+                class="text-forest-600 dark:text-forest-400 hover:text-forest-500 dark:hover:text-forest-300 font-medium transition-colors duration-200 ml-1">
+                {{ __('新規登録') }}
+            </a>
         </div>
     @endif
 </div>
