@@ -16,7 +16,6 @@ Route::middleware('guest')->group(function () {
 
     Volt::route('reset-password/{token}', 'auth.reset-password')
         ->name('password.reset');
-
 });
 
 Route::middleware('auth')->group(function () {
@@ -30,6 +29,3 @@ Route::middleware('auth')->group(function () {
     Volt::route('confirm-password', 'auth.confirm-password')
         ->name('password.confirm');
 });
-
-Route::post('logout', App\Livewire\Actions\Logout::class)
-    ->name('logout');
