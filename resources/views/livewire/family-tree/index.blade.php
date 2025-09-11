@@ -14,6 +14,14 @@ new #[Layout('layouts.app')] class extends Component {
             'familyTrees' => FamilyTree::where('user_id', Auth::id())->orderBy('created_at', 'desc')->get(),
         ];
     }
+
+    public function deleteFamilyTree($familyTreeId): void
+    {
+        $familyTree = FamilyTree::where('user_id', Auth::id())->findOrFail($familyTreeId);
+        $familyTree->delete();
+
+        session()->flash('success', '家系図を削除しました。');
+    }
 }; ?>
 
 <div>
