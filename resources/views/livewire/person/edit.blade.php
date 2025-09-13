@@ -27,6 +27,10 @@ new #[Layout('layouts.app')] class extends Component {
                 'adopted_child' => '養子',
             ],
         ],
+        'grandchild' => [
+            'label' => '孫',
+            'options' => [],
+        ],
         'parent' => [
             'label' => '父母',
             'options' => [
@@ -59,6 +63,10 @@ new #[Layout('layouts.app')] class extends Component {
     // 現在の選択パス
     public array $selectedPath = [];
     public string $finalRelationship = '';
+
+    // 孫選択時の死亡相続人選択
+    public ?int $selectedDeceasedHeirId = null;
+    public ?string $selectedDeceasedHeirRelationship = null;
 
     // 基本情報
     #[Rule('required|string|max:100', message: '姓を入力してください')]
@@ -149,18 +157,208 @@ new #[Layout('layouts.app')] class extends Component {
             ->toArray();
     }
 
+    // 死亡した相続人を取得
+    public function getDeceasedHeirs(): array
+    {
+        return $this->familyTree
+            ->people()
+            ->where('is_alive', false)
+            ->whereNotNull('relationship_to_deceased')
+            ->where('id', '!=', $this->person->id) // 現在編集中の人物は除外
+            ->get()
+            ->map(function ($person) {
+                return [
+                    'id' => $person->id,
+                    'name' => $person->full_name,
+                    'relationship' => $person->relationship_to_deceased,
+                ];
+            })
+            ->toArray();
+    }
+
     // 動的に続柄選択肢を生成
     public function generateDynamicChildOptions(): array
     {
         $existingRelationships = $this->getExistingRelationships();
         $options = [];
 
+        // 既存の続柄を分析（連続性を考慮）
+        $existingSons = [];
+        $existingDaughters = [];
+        $hasAdopted = false;
+
+        foreach ($existingRelationships as $relationship) {
+            if ($relationship === '長男') {
+                $existingSons[] = 1;
+            } elseif ($relationship === '二男') {
+                $existingSons[] = 2;
+            } elseif ($relationship === '三男') {
+                $existingSons[] = 3;
+            } elseif ($relationship === '四男') {
+                $existingSons[] = 4;
+            } elseif ($relationship === '五男') {
+                $existingSons[] = 5;
+            } elseif ($relationship === '六男') {
+                $existingSons[] = 6;
+            } elseif ($relationship === '七男') {
+                $existingSons[] = 7;
+            } elseif ($relationship === '八男') {
+                $existingSons[] = 8;
+            } elseif ($relationship === '九男') {
+                $existingSons[] = 9;
+            } elseif ($relationship === '長女') {
+                $existingDaughters[] = 1;
+            } elseif ($relationship === '二女') {
+                $existingDaughters[] = 2;
+            } elseif ($relationship === '三女') {
+                $existingDaughters[] = 3;
+            } elseif ($relationship === '四女') {
+                $existingDaughters[] = 4;
+            } elseif ($relationship === '五女') {
+                $existingDaughters[] = 5;
+            } elseif ($relationship === '六女') {
+                $existingDaughters[] = 6;
+            } elseif ($relationship === '七女') {
+                $existingDaughters[] = 7;
+            } elseif ($relationship === '八女') {
+                $existingDaughters[] = 8;
+            } elseif ($relationship === '九女') {
+                $existingDaughters[] = 9;
+            } elseif ($relationship === '養子') {
+                $hasAdopted = true;
+            }
+        }
+
+        // 男の子の選択肢を生成（連続性を保つ）
+        $maxSonNumber = empty($existingSons) ? 0 : max($existingSons);
+        for ($i = 1; $i <= $maxSonNumber + 1 && $i <= 9; $i++) {
+            if (!in_array($i, $existingSons)) {
+                $key = $this->getSonKey($i);
+                $label = $this->getSonLabel($i);
+                $options[$key] = $label;
+            }
+        }
+
+        // 女の子の選択肢を生成（連続性を保つ）
+        $maxDaughterNumber = empty($existingDaughters) ? 0 : max($existingDaughters);
+        for ($i = 1; $i <= $maxDaughterNumber + 1 && $i <= 9; $i++) {
+            if (!in_array($i, $existingDaughters)) {
+                $key = $this->getDaughterKey($i);
+                $label = $this->getDaughterLabel($i);
+                $options[$key] = $label;
+            }
+        }
+
+        // 養子の選択肢（1人まで）
+        if (!$hasAdopted) {
+            $options['adopted_child'] = '養子';
+        }
+
+        return $options;
+    }
+
+    // 男の子のキーを取得
+    private function getSonKey(int $number): string
+    {
+        return match ($number) {
+            1 => 'eldest_son',
+            2 => 'second_son',
+            3 => 'third_son',
+            4 => 'fourth_son',
+            5 => 'fifth_son',
+            6 => 'sixth_son',
+            7 => 'seventh_son',
+            8 => 'eighth_son',
+            9 => 'ninth_son',
+            default => 'son_' . $number,
+        };
+    }
+
+    // 男の子のラベルを取得
+    private function getSonLabel(int $number): string
+    {
+        return match ($number) {
+            1 => '長男',
+            2 => '二男',
+            3 => '三男',
+            4 => '四男',
+            5 => '五男',
+            6 => '六男',
+            7 => '七男',
+            8 => '八男',
+            9 => '九男',
+            default => $number . '男',
+        };
+    }
+
+    // 女の子のキーを取得
+    private function getDaughterKey(int $number): string
+    {
+        return match ($number) {
+            1 => 'eldest_daughter',
+            2 => 'second_daughter',
+            3 => 'third_daughter',
+            4 => 'fourth_daughter',
+            5 => 'fifth_daughter',
+            6 => 'sixth_daughter',
+            7 => 'seventh_daughter',
+            8 => 'eighth_daughter',
+            9 => 'ninth_daughter',
+            default => 'daughter_' . $number,
+        };
+    }
+
+    // 女の子のラベルを取得
+    private function getDaughterLabel(int $number): string
+    {
+        return match ($number) {
+            1 => '長女',
+            2 => '二女',
+            3 => '三女',
+            4 => '四女',
+            5 => '五女',
+            6 => '六女',
+            7 => '七女',
+            8 => '八女',
+            9 => '九女',
+            default => $number . '女',
+        };
+    }
+
+    // 孫の選択肢を生成（死亡した相続人のリスト）
+    public function generateGrandchildOptions(): array
+    {
+        $deceasedHeirs = $this->getDeceasedHeirs();
+        $options = [];
+
+        foreach ($deceasedHeirs as $heir) {
+            $key = 'grandchild_of_' . $heir['id'];
+            $label = $heir['name'] . '（' . $heir['relationship'] . '）の子';
+            $options[$key] = $label;
+        }
+
+        return $options;
+    }
+
+    // 死亡した相続人の子の具体的な続柄選択肢を生成
+    public function generateGrandchildRelationshipOptions($heirId): array
+    {
+        $options = [];
+
+        // 既存の孫の続柄を取得（同じ死亡した相続人の子として既に登録されているもの）
+        $existingGrandchildRelationships = $this->familyTree
+            ->people()
+            ->where('relationship_to_deceased', 'like', '%' . $this->getDeceasedHeirName($heirId) . '%')
+            ->where('id', '!=', $this->person->id) // 現在編集中の人物は除外
+            ->pluck('relationship_to_deceased')
+            ->toArray();
+
         // 既存の続柄を分析
         $sonCount = 0;
         $daughterCount = 0;
         $adoptedCount = 0;
 
-        foreach ($existingRelationships as $relationship) {
+        foreach ($existingGrandchildRelationships as $relationship) {
             if (str_contains($relationship, '長男') || str_contains($relationship, '二男') || str_contains($relationship, '三男') || str_contains($relationship, '四男') || str_contains($relationship, '五男')) {
                 $sonCount++;
             } elseif (str_contains($relationship, '長女') || str_contains($relationship, '二女') || str_contains($relationship, '三女') || str_contains($relationship, '四女') || str_contains($relationship, '五女')) {
@@ -171,42 +369,42 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         // 長男・長女が選択されていない場合は表示
-        if (!in_array('長男', $existingRelationships)) {
+        if (!in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の長男', $existingGrandchildRelationships)) {
             $options['eldest_son'] = '長男';
         }
-        if (!in_array('長女', $existingRelationships)) {
+        if (!in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の長女', $existingGrandchildRelationships)) {
             $options['eldest_daughter'] = '長女';
         }
 
         // 二男・二女の選択肢を生成
-        if ($sonCount >= 1 && !in_array('二男', $existingRelationships)) {
+        if ($sonCount >= 1 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の二男', $existingGrandchildRelationships)) {
             $options['second_son'] = '二男';
         }
-        if ($daughterCount >= 1 && !in_array('二女', $existingRelationships)) {
+        if ($daughterCount >= 1 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の二女', $existingGrandchildRelationships)) {
             $options['second_daughter'] = '二女';
         }
 
         // 三男・三女の選択肢を生成
-        if ($sonCount >= 2 && !in_array('三男', $existingRelationships)) {
+        if ($sonCount >= 2 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の三男', $existingGrandchildRelationships)) {
             $options['third_son'] = '三男';
         }
-        if ($daughterCount >= 2 && !in_array('三女', $existingRelationships)) {
+        if ($daughterCount >= 2 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の三女', $existingGrandchildRelationships)) {
             $options['third_daughter'] = '三女';
         }
 
         // 四男・四女の選択肢を生成
-        if ($sonCount >= 3 && !in_array('四男', $existingRelationships)) {
+        if ($sonCount >= 3 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の四男', $existingGrandchildRelationships)) {
             $options['fourth_son'] = '四男';
         }
-        if ($daughterCount >= 3 && !in_array('四女', $existingRelationships)) {
+        if ($daughterCount >= 3 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の四女', $existingGrandchildRelationships)) {
             $options['fourth_daughter'] = '四女';
         }
 
         // 五男・五女の選択肢を生成
-        if ($sonCount >= 4 && !in_array('五男', $existingRelationships)) {
+        if ($sonCount >= 4 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の五男', $existingGrandchildRelationships)) {
             $options['fifth_son'] = '五男';
         }
-        if ($daughterCount >= 4 && !in_array('五女', $existingRelationships)) {
+        if ($daughterCount >= 4 && !in_array($this->getDeceasedHeirName($heirId) . '（' . $this->getDeceasedHeirRelationship($heirId) . '）の五女', $existingGrandchildRelationships)) {
             $options['fifth_daughter'] = '五女';
         }
 
@@ -216,6 +414,30 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         return $options;
+    }
+
+    // 死亡した相続人の名前を取得
+    private function getDeceasedHeirName($heirId): string
+    {
+        $deceasedHeirs = $this->getDeceasedHeirs();
+        foreach ($deceasedHeirs as $heir) {
+            if ($heir['id'] === $heirId) {
+                return $heir['name'];
+            }
+        }
+        return '';
+    }
+
+    // 死亡した相続人の続柄を取得
+    private function getDeceasedHeirRelationship($heirId): string
+    {
+        $deceasedHeirs = $this->getDeceasedHeirs();
+        foreach ($deceasedHeirs as $heir) {
+            if ($heir['id'] === $heirId) {
+                return $heir['relationship'];
+            }
+        }
+        return '';
     }
 
     // 既存の続柄から選択パスを初期化
@@ -233,6 +455,29 @@ new #[Layout('layouts.app')] class extends Component {
             $this->selectedPath = ['child', array_search($relationship, $dynamicChildOptions)];
             $this->finalRelationship = $relationship;
             $this->relationship_to_deceased = $relationship;
+            return;
+        }
+
+        // 動的に生成された孫の続柄をチェック
+        $dynamicGrandchildOptions = $this->generateGrandchildOptions();
+        if (in_array($relationship, $dynamicGrandchildOptions)) {
+            $this->selectedPath = ['grandchild', array_search($relationship, $dynamicGrandchildOptions)];
+            $this->finalRelationship = $relationship;
+            $this->relationship_to_deceased = $relationship;
+
+            // 死亡した相続人の情報を設定
+            $key = array_search($relationship, $dynamicGrandchildOptions);
+            if (str_starts_with($key, 'grandchild_of_')) {
+                $heirId = (int) str_replace('grandchild_of_', '', $key);
+                $deceasedHeirs = $this->getDeceasedHeirs();
+                foreach ($deceasedHeirs as $heir) {
+                    if ($heir['id'] === $heirId) {
+                        $this->selectedDeceasedHeirId = $heir['id'];
+                        $this->selectedDeceasedHeirRelationship = $heir['relationship'];
+                        break;
+                    }
+                }
+            }
             return;
         }
 
@@ -278,6 +523,8 @@ new #[Layout('layouts.app')] class extends Component {
         if (empty($this->selectedPath)) {
             $this->finalRelationship = '';
             $this->relationship_to_deceased = null;
+            $this->selectedDeceasedHeirId = null;
+            $this->selectedDeceasedHeirRelationship = null;
             return;
         }
 
@@ -290,6 +537,46 @@ new #[Layout('layouts.app')] class extends Component {
                 $this->finalRelationship = $dynamicOptions[$childKey];
                 $this->relationship_to_deceased = $this->finalRelationship;
                 return;
+            }
+        }
+
+        // 孫が選択された場合の動的続柄処理
+        if ($this->selectedPath[0] === 'grandchild' && count($this->selectedPath) > 1) {
+            $grandchildKey = $this->selectedPath[1];
+
+            // 死亡した相続人が選択された場合（まだ具体的な続柄を選択していない）
+            if (str_starts_with($grandchildKey, 'grandchild_of_') && count($this->selectedPath) === 2) {
+                $heirId = (int) str_replace('grandchild_of_', '', $grandchildKey);
+
+                // 死亡した相続人の情報を設定（続柄はまだ設定しない）
+                $deceasedHeirs = $this->getDeceasedHeirs();
+                foreach ($deceasedHeirs as $heir) {
+                    if ($heir['id'] === $heirId) {
+                        $this->selectedDeceasedHeirId = $heir['id'];
+                        $this->selectedDeceasedHeirRelationship = $heir['relationship'];
+                        $this->finalRelationship = $heir['name'] . '（' . $heir['relationship'] . '）の子';
+                        $this->relationship_to_deceased = null; // まだ最終的な続柄ではない
+                        break;
+                    }
+                }
+                return;
+            } elseif (count($this->selectedPath) > 2) {
+                // 具体的な続柄が選択された場合（長男、長女など）
+                $heirId = (int) str_replace('grandchild_of_', '', $this->selectedPath[1]);
+                $relationshipKey = $this->selectedPath[2];
+                $relationshipOptions = $this->generateGrandchildRelationshipOptions($heirId);
+
+                if (isset($relationshipOptions[$relationshipKey])) {
+                    $heirName = $this->getDeceasedHeirName($heirId);
+                    $heirRelationship = $this->getDeceasedHeirRelationship($heirId);
+                    $this->finalRelationship = $heirName . '（' . $heirRelationship . '）の' . $relationshipOptions[$relationshipKey];
+                    $this->relationship_to_deceased = $this->finalRelationship;
+
+                    // 死亡した相続人の情報を設定
+                    $this->selectedDeceasedHeirId = $heirId;
+                    $this->selectedDeceasedHeirRelationship = $heirRelationship;
+                    return;
+                }
             }
         }
 
@@ -327,7 +614,7 @@ new #[Layout('layouts.app')] class extends Component {
     {
         if (empty($this->selectedPath)) {
             // 最初の選択肢
-            return [
+            $options = [
                 'spouse' => '配偶者',
                 'child' => '子',
                 'parent' => '父母',
@@ -335,11 +622,29 @@ new #[Layout('layouts.app')] class extends Component {
                 'sibling' => '兄弟姉妹',
                 'other' => 'その他',
             ];
+
+            // 死亡した相続人がいる場合は孫を追加
+            if (!empty($this->getDeceasedHeirs())) {
+                $options['grandchild'] = '孫';
+            }
+
+            return $options;
         }
 
         // 子が選択された場合は動的に選択肢を生成
         if ($this->selectedPath[0] === 'child') {
             return $this->generateDynamicChildOptions();
+        }
+
+        // 孫が選択された場合は動的に選択肢を生成
+        if ($this->selectedPath[0] === 'grandchild') {
+            // 孫の死亡した相続人が選択されている場合は、具体的な続柄を表示
+            if (count($this->selectedPath) > 1) {
+                $heirId = (int) str_replace('grandchild_of_', '', $this->selectedPath[1]);
+                return $this->generateGrandchildRelationshipOptions($heirId);
+            }
+            // 死亡した相続人のリストを表示
+            return $this->generateGrandchildOptions();
         }
 
         $current = $this->relationshipHierarchy;
@@ -368,6 +673,21 @@ new #[Layout('layouts.app')] class extends Component {
         // 子が選択された場合の動的続柄処理
         if ($this->selectedPath[0] === 'child' && count($this->selectedPath) > 1) {
             return true; // 子の動的選択肢は最終選択
+        }
+
+        // 孫が選択された場合の動的続柄処理
+        if ($this->selectedPath[0] === 'grandchild' && count($this->selectedPath) > 2) {
+            return true; // 孫の具体的な続柄選択は最終選択
+        }
+
+        // 孫の死亡した相続人が選択されたが、まだ具体的な続柄を選択していない場合は最終選択ではない
+        if ($this->selectedPath[0] === 'grandchild' && count($this->selectedPath) === 2) {
+            return false;
+        }
+
+        // 孫が選択されたが、まだ具体的な死亡相続人を選択していない場合は最終選択ではない
+        if ($this->selectedPath[0] === 'grandchild' && count($this->selectedPath) === 1) {
+            return false;
         }
 
         // その他が選択された場合
@@ -549,7 +869,7 @@ new #[Layout('layouts.app')] class extends Component {
 
                             <div class="flex items-start">
                                 <div class="flex items-center h-5">
-                                    <input type="checkbox" wire:model="is_alive" id="is_alive"
+                                    <input type="checkbox" wire:model.live="is_alive" id="is_alive"
                                         class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded">
                                 </div>
                                 <div class="ml-3 text-sm">
@@ -682,6 +1002,31 @@ new #[Layout('layouts.app')] class extends Component {
                                                 $dynamicOptions = $this->generateDynamicChildOptions();
                                                 if (isset($dynamicOptions[$childKey])) {
                                                     $displayPath[] = $dynamicOptions[$childKey];
+                                                }
+                                            } elseif ($selectedPath[0] === 'grandchild') {
+                                                // 孫が選択された場合の動的続柄処理
+                                                if (str_starts_with($childKey, 'grandchild_of_')) {
+                                                    // 死亡した相続人が選択された場合
+                                                    $dynamicOptions = $this->generateGrandchildOptions();
+                                                    if (isset($dynamicOptions[$childKey])) {
+                                                        $displayPath[] = $dynamicOptions[$childKey];
+                                                    }
+                                                } else {
+                                                    // 具体的な続柄が選択された場合
+                                                    $heirId = (int) str_replace('grandchild_of_', '', $selectedPath[1]);
+                                                    $relationshipOptions = $this->generateGrandchildRelationshipOptions(
+                                                        $heirId,
+                                                    );
+                                                    if (isset($relationshipOptions[$childKey])) {
+                                                        $heirName = $this->getDeceasedHeirName($heirId);
+                                                        $heirRelationship = $this->getDeceasedHeirRelationship($heirId);
+                                                        $displayPath[] =
+                                                            $heirName .
+                                                            '（' .
+                                                            $heirRelationship .
+                                                            '）の' .
+                                                            $relationshipOptions[$childKey];
+                                                    }
                                                 }
                                             } else {
                                                 // 通常の階層構造から検索
