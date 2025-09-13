@@ -119,4 +119,19 @@ class Person extends Model
             $q->whereColumn('deceased_person_id', 'people.id');
         });
     }
+
+    // 削除時の関連データ処理
+    protected static function booted()
+    {
+        static::deleting(function ($person) {
+            // この人物に関連する関係性を削除
+            $person->relationsAsSubject()->delete();
+            $person->relationsAsObject()->delete();
+
+            // 被相続人の場合は家系図のdeceased_person_idをnullに設定
+            if ($person->isDeceasedPerson()) {
+                $person->familyTree->update(['deceased_person_id' => null]);
+            }
+        });
+    }
 }

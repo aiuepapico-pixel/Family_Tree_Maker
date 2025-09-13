@@ -7,6 +7,7 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component {
     public FamilyTree $familyTree;
+    public ?int $personToDelete = null;
 
     // 続柄の階層構造（wizard/index.blade.phpと同じ構造）
     public array $relationshipHierarchy = [
@@ -158,6 +159,44 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         return $options;
+    }
+
+    // 削除確認ダイアログを表示
+    public function confirmDelete(int $personId): void
+    {
+        $this->personToDelete = $personId;
+    }
+
+    // 削除をキャンセル
+    public function cancelDelete(): void
+    {
+        $this->personToDelete = null;
+    }
+
+    // 人物を削除
+    public function deletePerson(): void
+    {
+        if (!$this->personToDelete) {
+            return;
+        }
+
+        $person = Person::find($this->personToDelete);
+
+        if (!$person) {
+            $this->addError('delete', '人物が見つかりません。');
+            return;
+        }
+
+        // 権限チェック
+        $this->authorize('delete', $person);
+
+        try {
+            $person->delete();
+            $this->personToDelete = null;
+            session()->flash('success', '人物を削除しました。');
+        } catch (\Exception $e) {
+            $this->addError('delete', '削除中にエラーが発生しました: ' . $e->getMessage());
+        }
     }
 
     public function with(): array
@@ -355,6 +394,10 @@ new #[Layout('layouts.app')] class extends Component {
                                                 class="text-xs text-blue-600 hover:text-blue-900">
                                                 編集
                                             </a>
+                                            <button wire:click="confirmDelete({{ $person->id }})"
+                                                class="text-xs text-red-600 hover:text-red-900">
+                                                削除
+                                            </button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -427,5 +470,54 @@ new #[Layout('layouts.app')] class extends Component {
             </div>
         </div>
     </div>
+
+    <!-- 削除確認ダイアログ -->
+    @if ($personToDelete)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+            wire:click="cancelDelete">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" wire:click.stop>
+                <div class="mt-3 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mt-4">人物を削除しますか？</h3>
+                    <div class="mt-2 px-7 py-3">
+                        <p class="text-sm text-gray-500">
+                            この操作は取り消せません。この人物と関連するすべての関係性も削除されます。
+                        </p>
+                    </div>
+                    <div class="items-center px-4 py-3">
+                        <button wire:click="deletePerson"
+                            class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                            削除
+                        </button>
+                        <button wire:click="cancelDelete"
+                            class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-24 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            キャンセル
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- 成功メッセージ -->
+    @if (session('success'))
+        <div class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50"
+            x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    <!-- エラーメッセージ -->
+    @error('delete')
+        <div class="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50"
+            x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)">
+            {{ $message }}
+        </div>
+    @enderror
 
 </div>
