@@ -128,6 +128,38 @@ new #[Layout('layouts.app')] class extends Component {
             $options['fifth_daughter'] = '五女';
         }
 
+        // 六男・六女の選択肢を生成
+        if ($sonCount >= 5 && !in_array('六男', $existingRelationships)) {
+            $options['sixth_son'] = '六男';
+        }
+        if ($daughterCount >= 5 && !in_array('六女', $existingRelationships)) {
+            $options['sixth_daughter'] = '六女';
+        }
+
+        // 七男・七女の選択肢を生成
+        if ($sonCount >= 6 && !in_array('七男', $existingRelationships)) {
+            $options['seventh_son'] = '七男';
+        }
+        if ($daughterCount >= 6 && !in_array('七女', $existingRelationships)) {
+            $options['seventh_daughter'] = '七女';
+        }
+
+        // 八男・八女の選択肢を生成
+        if ($sonCount >= 7 && !in_array('八男', $existingRelationships)) {
+            $options['eighth_son'] = '八男';
+        }
+        if ($daughterCount >= 7 && !in_array('八女', $existingRelationships)) {
+            $options['eighth_daughter'] = '八女';
+        }
+
+        // 九男・九女の選択肢を生成
+        if ($sonCount >= 8 && !in_array('九男', $existingRelationships)) {
+            $options['ninth_son'] = '九男';
+        }
+        if ($daughterCount >= 8 && !in_array('九女', $existingRelationships)) {
+            $options['ninth_daughter'] = '九女';
+        }
+
         // 養子の選択肢
         if ($adoptedCount === 0) {
             $options['adopted_child'] = '養子';

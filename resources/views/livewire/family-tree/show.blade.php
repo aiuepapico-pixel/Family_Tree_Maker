@@ -65,6 +65,15 @@ new #[Layout('layouts.app')] class extends Component {
     // 続柄を階層表示に変換するメソッド
     public function getRelationshipDisplay(string $relationship): string
     {
+        // 子の続柄パターンをチェック（長男、二女、養子など）
+        $childPatterns = ['長男', '二男', '三男', '四男', '五男', '六男', '七男', '八男', '九男', '長女', '二女', '三女', '四女', '五女', '六女', '七女', '八女', '九女', '養子'];
+
+        foreach ($childPatterns as $pattern) {
+            if ($relationship === $pattern) {
+                return '子(' . $relationship . ')';
+            }
+        }
+
         // 既存の続柄データを取得
         $existingRelationships = $this->familyTree->people()->whereNotNull('relationship_to_deceased')->pluck('relationship_to_deceased')->toArray();
 
@@ -73,7 +82,7 @@ new #[Layout('layouts.app')] class extends Component {
 
         // 動的に生成された子の続柄の場合
         if (in_array($relationship, $dynamicChildOptions)) {
-            return $relationship; // そのまま返す（長男、二男など）
+            return '子(' . $relationship . ')'; // 子(長男)、子(二女)など
         }
 
         // 階層構造から検索
@@ -81,7 +90,7 @@ new #[Layout('layouts.app')] class extends Component {
             if (isset($data['options'])) {
                 foreach ($data['options'] as $key => $label) {
                     if ($label === $relationship) {
-                        return $data['label'] . ' → ' . $label;
+                        return $data['label'] . '(' . $label . ')';
                     }
                 }
             }
@@ -104,9 +113,9 @@ new #[Layout('layouts.app')] class extends Component {
         $adoptedCount = 0;
 
         foreach ($existingRelationships as $relationship) {
-            if (str_contains($relationship, '長男') || str_contains($relationship, '二男') || str_contains($relationship, '三男') || str_contains($relationship, '四男') || str_contains($relationship, '五男')) {
+            if (str_contains($relationship, '長男') || str_contains($relationship, '二男') || str_contains($relationship, '三男') || str_contains($relationship, '四男') || str_contains($relationship, '五男') || str_contains($relationship, '六男') || str_contains($relationship, '七男') || str_contains($relationship, '八男') || str_contains($relationship, '九男')) {
                 $sonCount++;
-            } elseif (str_contains($relationship, '長女') || str_contains($relationship, '二女') || str_contains($relationship, '三女') || str_contains($relationship, '四女') || str_contains($relationship, '五女')) {
+            } elseif (str_contains($relationship, '長女') || str_contains($relationship, '二女') || str_contains($relationship, '三女') || str_contains($relationship, '四女') || str_contains($relationship, '五女') || str_contains($relationship, '六女') || str_contains($relationship, '七女') || str_contains($relationship, '八女') || str_contains($relationship, '九女')) {
                 $daughterCount++;
             } elseif (str_contains($relationship, '養子')) {
                 $adoptedCount++;
@@ -151,6 +160,38 @@ new #[Layout('layouts.app')] class extends Component {
         }
         if ($daughterCount >= 4 && !in_array('五女', $existingRelationships)) {
             $options['fifth_daughter'] = '五女';
+        }
+
+        // 六男・六女の選択肢を生成
+        if ($sonCount >= 5 && !in_array('六男', $existingRelationships)) {
+            $options['sixth_son'] = '六男';
+        }
+        if ($daughterCount >= 5 && !in_array('六女', $existingRelationships)) {
+            $options['sixth_daughter'] = '六女';
+        }
+
+        // 七男・七女の選択肢を生成
+        if ($sonCount >= 6 && !in_array('七男', $existingRelationships)) {
+            $options['seventh_son'] = '七男';
+        }
+        if ($daughterCount >= 6 && !in_array('七女', $existingRelationships)) {
+            $options['seventh_daughter'] = '七女';
+        }
+
+        // 八男・八女の選択肢を生成
+        if ($sonCount >= 7 && !in_array('八男', $existingRelationships)) {
+            $options['eighth_son'] = '八男';
+        }
+        if ($daughterCount >= 7 && !in_array('八女', $existingRelationships)) {
+            $options['eighth_daughter'] = '八女';
+        }
+
+        // 九男・九女の選択肢を生成
+        if ($sonCount >= 8 && !in_array('九男', $existingRelationships)) {
+            $options['ninth_son'] = '九男';
+        }
+        if ($daughterCount >= 8 && !in_array('九女', $existingRelationships)) {
+            $options['ninth_daughter'] = '九女';
         }
 
         // 養子の選択肢
