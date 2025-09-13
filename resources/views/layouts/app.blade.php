@@ -52,6 +52,32 @@
                             ])>
                                 家系図
                             </a>
+                            <!-- 設定メニューをドロップダウンに変更 -->
+                            <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                                <button type="button" @click="open = !open" @class([
+                                    'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
+                                    'border-blue-500 text-gray-900' => request()->routeIs('settings.*'),
+                                    'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' => !request()->routeIs(
+                                        'settings.*'),
+                                ])>
+                                    設定
+                                    <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                                <div x-show="open" x-transition
+                                    class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                    style="display: none;">
+                                    <a href="{{ route('settings.profile') }}" wire:navigate
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">プロフィール</a>
+                                    <a href="{{ route('settings.password') }}" wire:navigate
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">パスワード</a>
+                                    <a href="{{ route('settings.appearance') }}" wire:navigate
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">外観</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -71,6 +97,18 @@
                             <div x-show="open" x-transition
                                 class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                                 style="display: none;">
+                                <div class="px-4 py-2 text-sm text-gray-500 border-b border-gray-200">
+                                    {{ Auth::user()->name }}
+                                </div>
+                                <a href="{{ route('family-trees.index') }}" wire:navigate
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    家系図一覧
+                                </a>
+                                <a href="{{ route('family-trees.create') }}" wire:navigate
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    新しい家系図
+                                </a>
+                                <div class="border-t border-gray-200 my-1"></div>
                                 <a href="{{ route('settings.profile') }}" wire:navigate
                                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     設定
@@ -139,6 +177,14 @@
                         </div>
                     </div>
                     <div class="mt-3 space-y-1">
+                        <a href="{{ route('family-trees.index') }}" wire:navigate
+                            class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800">
+                            家系図一覧
+                        </a>
+                        <a href="{{ route('family-trees.create') }}" wire:navigate
+                            class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800">
+                            新しい家系図
+                        </a>
                         <a href="{{ route('settings.profile') }}" wire:navigate
                             class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800">
                             設定
