@@ -401,6 +401,18 @@ new #[Layout('layouts.app')] class extends Component {
                     {{ $familyTree->title }}
                 </p>
             </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <a href="{{ route('family-trees.show', $familyTree) }}"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    家系図を表示
+                </a>
+            </div>
         </div>
 
         <!-- 進捗バー -->
@@ -758,11 +770,21 @@ new #[Layout('layouts.app')] class extends Component {
 
             <!-- ナビゲーションボタン -->
             <div class="flex justify-between">
-                <button type="button" wire:click="previousStep"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    @if ($currentStep === 1) disabled @endif>
-                    前へ
-                </button>
+                <div class="flex space-x-3">
+                    <a href="{{ route('family-trees.show', $familyTree) }}"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        家系図に戻る
+                    </a>
+                    <button type="button" wire:click="previousStep"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        @if ($currentStep === 1) disabled @endif>
+                        前へ
+                    </button>
+                </div>
 
                 @if ($currentStep < count($steps))
                     <button type="button" wire:click="nextStep"

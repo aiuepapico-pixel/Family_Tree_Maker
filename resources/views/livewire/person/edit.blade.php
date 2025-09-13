@@ -232,6 +232,7 @@ new #[Layout('layouts.app')] class extends Component {
         if (in_array($relationship, $dynamicChildOptions)) {
             $this->selectedPath = ['child', array_search($relationship, $dynamicChildOptions)];
             $this->finalRelationship = $relationship;
+            $this->relationship_to_deceased = $relationship;
             return;
         }
 
@@ -242,6 +243,7 @@ new #[Layout('layouts.app')] class extends Component {
                     if ($label === $relationship) {
                         $this->selectedPath = [$category, $key];
                         $this->finalRelationship = $relationship;
+                        $this->relationship_to_deceased = $relationship;
                         return;
                     }
                 }
@@ -253,6 +255,7 @@ new #[Layout('layouts.app')] class extends Component {
             $this->custom_relationship = $relationship;
             $this->selectedPath = ['other'];
             $this->finalRelationship = 'その他';
+            $this->relationship_to_deceased = $relationship;
         }
     }
 
@@ -290,6 +293,13 @@ new #[Layout('layouts.app')] class extends Component {
             }
         }
 
+        // その他が選択された場合
+        if ($this->selectedPath[0] === 'other') {
+            $this->finalRelationship = 'その他';
+            $this->relationship_to_deceased = $this->custom_relationship ?: 'その他';
+            return;
+        }
+
         $path = $this->selectedPath;
         $current = $this->relationshipHierarchy;
 
@@ -301,8 +311,16 @@ new #[Layout('layouts.app')] class extends Component {
             }
         }
 
-        $this->finalRelationship = $current['label'] ?? '';
-        $this->relationship_to_deceased = $this->finalRelationship;
+        // 最終的な続柄を設定
+        if (count($path) === 2 && isset($current['options'][$path[1]])) {
+            // 具体的な続柄（妻、夫、父、母など）
+            $this->finalRelationship = $current['options'][$path[1]];
+            $this->relationship_to_deceased = $this->finalRelationship;
+        } else {
+            // カテゴリラベル（配偶者、子、父母など）
+            $this->finalRelationship = $current['label'] ?? '';
+            $this->relationship_to_deceased = $this->finalRelationship;
+        }
     }
 
     public function getCurrentOptions(): array
@@ -352,16 +370,26 @@ new #[Layout('layouts.app')] class extends Component {
             return true; // 子の動的選択肢は最終選択
         }
 
-        $current = $this->relationshipHierarchy;
-        foreach ($this->selectedPath as $key) {
-            if (isset($current[$key])) {
-                $current = $current[$key];
-            } else {
-                return false;
-            }
+        // その他が選択された場合
+        if ($this->selectedPath[0] === 'other') {
+            return true;
         }
 
-        return empty($current['options']);
+        // 2段階の選択（カテゴリ→具体的な続柄）の場合
+        if (count($this->selectedPath) === 2) {
+            $current = $this->relationshipHierarchy;
+            foreach ($this->selectedPath as $key) {
+                if (isset($current[$key])) {
+                    $current = $current[$key];
+                } else {
+                    return false;
+                }
+            }
+            // 具体的な続柄が選択されている場合
+            return isset($current['options']) && count($current['options']) > 0;
+        }
+
+        return false;
     }
 
     public function save(): void
