@@ -8,16 +8,163 @@ use Livewire\Volt\Component;
 new #[Layout('layouts.app')] class extends Component {
     public FamilyTree $familyTree;
 
+    // 続柄の階層構造（wizard/index.blade.phpと同じ構造）
+    public array $relationshipHierarchy = [
+        'spouse' => [
+            'label' => '配偶者',
+            'options' => [
+                'wife' => '妻',
+                'husband' => '夫',
+            ],
+        ],
+        'child' => [
+            'label' => '子',
+            'options' => [
+                'eldest_son' => '長男',
+                'eldest_daughter' => '長女',
+                'adopted_child' => '養子',
+            ],
+        ],
+        'parent' => [
+            'label' => '父母',
+            'options' => [
+                'father' => '父',
+                'mother' => '母',
+            ],
+        ],
+        'grandparent' => [
+            'label' => '祖父母',
+            'options' => [
+                'grandfather' => '祖父',
+                'grandmother' => '祖母',
+            ],
+        ],
+        'sibling' => [
+            'label' => '兄弟姉妹',
+            'options' => [
+                'elder_brother' => '兄',
+                'younger_brother' => '弟',
+                'elder_sister' => '姉',
+                'younger_sister' => '妹',
+            ],
+        ],
+        'other' => [
+            'label' => 'その他',
+            'options' => [],
+        ],
+    ];
+
     public function mount(FamilyTree $familyTree): void
     {
+        \Log::info('FamilyTreeShow component mounted', ['family_tree_id' => $familyTree->id]);
         $this->authorize('view', $familyTree);
         $this->familyTree = $familyTree;
+    }
+
+    // 続柄を階層表示に変換するメソッド
+    public function getRelationshipDisplay(string $relationship): string
+    {
+        // 既存の続柄データを取得
+        $existingRelationships = $this->familyTree->people()->whereNotNull('relationship_to_deceased')->pluck('relationship_to_deceased')->toArray();
+
+        // 動的に生成された子の続柄をチェック
+        $dynamicChildOptions = $this->generateDynamicChildOptions();
+
+        // 動的に生成された子の続柄の場合
+        if (in_array($relationship, $dynamicChildOptions)) {
+            return $relationship; // そのまま返す（長男、二男など）
+        }
+
+        // 階層構造から検索
+        foreach ($this->relationshipHierarchy as $category => $data) {
+            if (isset($data['options'])) {
+                foreach ($data['options'] as $key => $label) {
+                    if ($label === $relationship) {
+                        return $data['label'] . ' → ' . $label;
+                    }
+                }
+            }
+        }
+
+        // 見つからない場合はそのまま返す
+        return $relationship;
+    }
+
+    // 動的に子の続柄選択肢を生成（wizard/index.blade.phpと同じロジック）
+    public function generateDynamicChildOptions(): array
+    {
+        $existingRelationships = $this->familyTree->people()->whereNotNull('relationship_to_deceased')->pluck('relationship_to_deceased')->toArray();
+
+        $options = [];
+
+        // 既存の続柄を分析
+        $sonCount = 0;
+        $daughterCount = 0;
+        $adoptedCount = 0;
+
+        foreach ($existingRelationships as $relationship) {
+            if (str_contains($relationship, '長男') || str_contains($relationship, '二男') || str_contains($relationship, '三男') || str_contains($relationship, '四男') || str_contains($relationship, '五男')) {
+                $sonCount++;
+            } elseif (str_contains($relationship, '長女') || str_contains($relationship, '二女') || str_contains($relationship, '三女') || str_contains($relationship, '四女') || str_contains($relationship, '五女')) {
+                $daughterCount++;
+            } elseif (str_contains($relationship, '養子')) {
+                $adoptedCount++;
+            }
+        }
+
+        // 長男・長女が選択されていない場合は表示
+        if (!in_array('長男', $existingRelationships)) {
+            $options['eldest_son'] = '長男';
+        }
+        if (!in_array('長女', $existingRelationships)) {
+            $options['eldest_daughter'] = '長女';
+        }
+
+        // 二男・二女の選択肢を生成
+        if ($sonCount >= 1 && !in_array('二男', $existingRelationships)) {
+            $options['second_son'] = '二男';
+        }
+        if ($daughterCount >= 1 && !in_array('二女', $existingRelationships)) {
+            $options['second_daughter'] = '二女';
+        }
+
+        // 三男・三女の選択肢を生成
+        if ($sonCount >= 2 && !in_array('三男', $existingRelationships)) {
+            $options['third_son'] = '三男';
+        }
+        if ($daughterCount >= 2 && !in_array('三女', $existingRelationships)) {
+            $options['third_daughter'] = '三女';
+        }
+
+        // 四男・四女の選択肢を生成
+        if ($sonCount >= 3 && !in_array('四男', $existingRelationships)) {
+            $options['fourth_son'] = '四男';
+        }
+        if ($daughterCount >= 3 && !in_array('四女', $existingRelationships)) {
+            $options['fourth_daughter'] = '四女';
+        }
+
+        // 五男・五女の選択肢を生成
+        if ($sonCount >= 4 && !in_array('五男', $existingRelationships)) {
+            $options['fifth_son'] = '五男';
+        }
+        if ($daughterCount >= 4 && !in_array('五女', $existingRelationships)) {
+            $options['fifth_daughter'] = '五女';
+        }
+
+        // 養子の選択肢
+        if ($adoptedCount === 0) {
+            $options['adopted_child'] = '養子';
+        }
+
+        return $options;
     }
 
     public function with(): array
     {
         return [
-            'people' => $this->familyTree->people()->orderBy('generation_level')->orderBy('display_order')->get(),
+            'deceasedPerson' => $this->familyTree->people()->deceasedPerson()->first(),
+            'familyMembers' => $this->familyTree->people()->familyMembers()->orderBy('generation_level')->orderBy('display_order')->get(),
             'relationships' => $this->familyTree
                 ->relationships()
                 ->with(['person1', 'person2'])
@@ -37,6 +184,10 @@ new #[Layout('layouts.app')] class extends Component {
                         <p class="mt-2 text-sm text-gray-500">{{ $familyTree->description }}</p>
                     </div>
                     <div class="flex space-x-3">
+                        <a href="{{ route('family-trees.visual', $familyTree) }}"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            視覚的表示
+                        </a>
                         <a href="{{ route('family-trees.edit', $familyTree) }}"
                             class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                             編集
@@ -73,52 +224,155 @@ new #[Layout('layouts.app')] class extends Component {
                 </div>
             </div>
 
-            <!-- 家系図表示エリア -->
+            <!-- 被相続人表示エリア -->
+            @if ($deceasedPerson)
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-medium text-red-900">被相続人</h2>
+                            <p class="text-sm text-red-600">この家系図の被相続人（故人）</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="{{ route('deceased-person.edit', $familyTree) }}"
+                                class="inline-flex items-center px-3 py-1 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50">
+                                編集
+                            </a>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="bg-white border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                        <span class="text-red-600 font-medium text-lg">
+                                            {{ mb_substr($deceasedPerson->family_name, 0, 1) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-medium text-gray-900">{{ $deceasedPerson->full_name }}</h3>
+                                    <p class="text-sm text-gray-500">{{ $deceasedPerson->full_name_kana }}</p>
+                                    <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                                        <span>{{ $deceasedPerson->gender === 'male' ? '男性' : '女性' }}</span>
+                                        @if ($deceasedPerson->birth_date)
+                                            <span>生年月日: {{ $deceasedPerson->birth_date->format('Y年n月j日') }}</span>
+                                        @endif
+                                        @if ($deceasedPerson->death_date)
+                                            <span>死亡日: {{ $deceasedPerson->death_date->format('Y年n月j日') }}</span>
+                                        @endif
+                                    </div>
+                                    @if ($deceasedPerson->current_address || $deceasedPerson->registered_domicile || $deceasedPerson->registered_address)
+                                        <div class="mt-2 text-sm text-gray-500">
+                                            @if ($deceasedPerson->current_address)
+                                                <p>現住所: {{ $deceasedPerson->current_address }}</p>
+                                            @endif
+                                            @if ($deceasedPerson->registered_domicile)
+                                                <p>本籍地: {{ $deceasedPerson->registered_domicile }}</p>
+                                            @endif
+                                            @if ($deceasedPerson->registered_address)
+                                                <p>住民票住所: {{ $deceasedPerson->registered_address }}</p>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-medium text-yellow-900">被相続人が未設定</h2>
+                            <p class="text-sm text-yellow-600">まず被相続人を登録してください</p>
+                        </div>
+                        <a href="{{ route('deceased-person.wizard', $familyTree) }}"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                            被相続人を登録
+                        </a>
+                    </div>
+                </div>
+            @endif
+
+            <!-- 家族構成員表示エリア -->
             <div class="bg-white shadow rounded-lg p-6">
                 <div class="mb-4 flex justify-between items-center">
                     <h2 class="text-lg font-medium text-gray-900">家族構成員</h2>
-                    <a href="{{ route('persons.wizard', $familyTree) }}"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        人物を追加
-                    </a>
+                    @if ($deceasedPerson)
+                        <a href="{{ route('persons.wizard', $familyTree) }}"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            人物を追加
+                        </a>
+                    @endif
                 </div>
 
-                <!-- 世代ごとの人物リスト -->
-                @foreach ($people->groupBy('generation_level') as $level => $generationPeople)
-                    <div class="mb-8">
-                        <h3 class="text-sm font-medium text-gray-500 mb-4">
-                            {{ $level === 0 ? '基準世代' : ($level > 0 ? $level . '世代下' : abs($level) . '世代上') }}
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            @foreach ($generationPeople as $person)
-                                <div class="border rounded-lg p-4 @if (!$person->is_alive) bg-gray-50 @endif">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <h4 class="text-lg font-medium text-gray-900">
-                                                {{ $person->full_name }}
-                                            </h4>
-                                            <p class="text-sm text-gray-500">{{ $person->full_name_kana }}</p>
-                                        </div>
-                                        <span
-                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @if ($familyMembers->count() > 0)
+                    <!-- 世代ごとの人物リスト -->
+                    @foreach ($familyMembers->groupBy('generation_level') as $level => $generationPeople)
+                        <div class="mb-8">
+                            <h3 class="text-sm font-medium text-gray-500 mb-4">
+                                {{ $level === 0 ? '基準世代' : ($level > 0 ? $level . '世代下' : abs($level) . '世代上') }}
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                @foreach ($generationPeople as $person)
+                                    <div
+                                        class="border rounded-lg p-4 @if (!$person->is_alive) bg-gray-50 @endif">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h4 class="text-lg font-medium text-gray-900">
+                                                    {{ $person->full_name }}
+                                                </h4>
+                                                <p class="text-sm text-gray-500">{{ $person->full_name_kana }}</p>
+                                            </div>
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                             @if ($person->is_alive) bg-green-100 text-green-800 @else bg-gray-100 text-gray-800 @endif">
-                                            {{ $person->is_alive ? '生存' : '死亡' }}
-                                        </span>
+                                                {{ $person->is_alive ? '生存' : '死亡' }}
+                                            </span>
+                                        </div>
+                                        <div class="mt-2 text-sm text-gray-500">
+                                            <p>生年月日: {{ $person->birth_date?->format('Y年n月j日') }}</p>
+                                            @if (!$person->is_alive && $person->death_date)
+                                                <p>死亡年月日: {{ $person->death_date->format('Y年n月j日') }}</p>
+                                            @endif
+                                            @if ($person->relationship_to_deceased)
+                                                <p>続柄:
+                                                    {{ $this->getRelationshipDisplay($person->relationship_to_deceased) }}
+                                                </p>
+                                            @endif
+                                            @if ($person->current_address)
+                                                <p>現住所: {{ $person->current_address }}</p>
+                                            @endif
+                                            @if ($person->registered_domicile)
+                                                <p>本籍地: {{ $person->registered_domicile }}</p>
+                                            @endif
+                                            @if ($person->registered_address)
+                                                <p>住民票住所: {{ $person->registered_address }}</p>
+                                            @endif
+                                        </div>
+                                        <div class="mt-2 flex space-x-2">
+                                            <a href="{{ route('persons.edit', ['familyTree' => $familyTree, 'person' => $person]) }}"
+                                                class="text-xs text-blue-600 hover:text-blue-900">
+                                                編集
+                                            </a>
+                                        </div>
                                     </div>
-                                    <div class="mt-2 text-sm text-gray-500">
-                                        <p>生年月日: {{ $person->birth_date?->format('Y年n月j日') }}</p>
-                                        @if (!$person->is_alive && $person->death_date)
-                                            <p>死亡年月日: {{ $person->death_date->format('Y年n月j日') }}</p>
-                                        @endif
-                                        @if ($person->relationship_to_deceased)
-                                            <p>続柄: {{ $person->relationship_to_deceased }}</p>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
+                    @endforeach
+                @else
+                    <div class="text-center py-12">
+                        <div class="mx-auto h-12 w-12 text-gray-400">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">家族構成員がいません</h3>
+                        <p class="mt-1 text-sm text-gray-500">被相続人を登録した後、家族構成員を追加してください。</p>
                     </div>
-                @endforeach
+                @endif
 
                 <!-- 関係性の表示 -->
                 @if ($relationships->isNotEmpty())
@@ -173,4 +427,5 @@ new #[Layout('layouts.app')] class extends Component {
             </div>
         </div>
     </div>
+
 </div>

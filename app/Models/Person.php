@@ -39,6 +39,24 @@ class Person extends Model
         'position_y' => 'decimal:2',
     ];
 
+    // ルートキー名を明示的に設定
+    public function getRouteKeyName(): string
+    {
+        return 'id';
+    }
+
+    // ルートモデルバインディングの解決
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
+    }
+
+    // ルートモデルバインディングの解決（子クラス用）
+    public function resolveChildRouteBinding($childType, $value, $field = null)
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
+    }
+
     // 家系図との関係
     public function familyTree(): BelongsTo
     {
@@ -78,5 +96,27 @@ class Person extends Model
 
         $endDate = $this->is_alive ? now() : ($this->death_date ?? now());
         return $this->birth_date->diffInYears($endDate);
+    }
+
+    // 被相続人かどうかの判定
+    public function isDeceasedPerson(): bool
+    {
+        return $this->familyTree->deceased_person_id === $this->id;
+    }
+
+    // 被相続人スコープ
+    public function scopeDeceasedPerson($query)
+    {
+        return $query->whereHas('familyTree', function ($q) {
+            $q->whereColumn('deceased_person_id', 'people.id');
+        });
+    }
+
+    // 構成員スコープ（被相続人以外）
+    public function scopeFamilyMembers($query)
+    {
+        return $query->whereDoesntHave('familyTree', function ($q) {
+            $q->whereColumn('deceased_person_id', 'people.id');
+        });
     }
 }
