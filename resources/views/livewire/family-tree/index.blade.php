@@ -67,10 +67,8 @@ new #[Layout('layouts.app')] class extends Component {
                             </div>
                             <div class="bg-gray-50 px-4 py-4 sm:px-6">
                                 <div class="flex justify-end space-x-3">
-                                    <a href="{{ route('family-trees.edit', $familyTree) }}"
-                                        class="text-blue-600 hover:text-blue-900">編集</a>
                                     <a href="{{ route('family-trees.show', $familyTree) }}"
-                                        class="text-green-600 hover:text-green-900">表示</a>
+                                        class="text-green-600 hover:text-green-900">編集</a>
                                     <button wire:click="deleteFamilyTree({{ $familyTree->id }})"
                                         class="text-red-600 hover:text-red-900" onclick="return confirm('本当に削除しますか？')">
                                         削除

@@ -21,7 +21,8 @@ new #[Layout('layouts.app')] class extends Component {
 
         $familyTree->save();
 
-        $this->redirect(route('family-trees.edit', $familyTree), navigate: true);
+        session()->flash('success', '家系図を作成して被相続人を登録しました。被相続人を登録してください。');
+        $this->redirect(route('deceased-person.wizard', $familyTree), navigate: true);
     }
 }; ?>
 
@@ -29,7 +30,7 @@ new #[Layout('layouts.app')] class extends Component {
     <div class="max-w-3xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <div class="mb-6">
-                <h1 class="text-2xl font-semibold text-gray-900">新規家系図作成</h1>
+                <h1 class="text-2xl font-semibold text-gray-900">新規家系図作成して被相続人を登録</h1>
             </div>
 
             <form wire:submit="save" class="space-y-6">
@@ -68,7 +69,7 @@ new #[Layout('layouts.app')] class extends Component {
                     </a>
                     <button type="submit"
                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        作成
+                        作成して被相続人を登録
                     </button>
                 </div>
             </form>

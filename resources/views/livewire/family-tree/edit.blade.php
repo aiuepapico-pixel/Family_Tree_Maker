@@ -52,7 +52,8 @@ new #[Layout('layouts.app')] class extends Component {
             'inheritance_date' => $validated['inheritance_date'],
         ]);
 
-        $this->dispatch('family-tree-updated');
+        session()->flash('success', '家系図情報を更新しました。');
+        $this->redirect(route('persons.wizard', $this->familyTree), navigate: true);
     }
 
     public function updateStatus(string $status): void
@@ -64,7 +65,8 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         $this->familyTree->update(['status' => $status]);
-        $this->dispatch('family-tree-updated');
+        session()->flash('success', '家系図情報を更新しました。');
+        $this->redirect(route('persons.wizard', $this->familyTree), navigate: true);
     }
 }; ?>
 
@@ -169,7 +171,7 @@ new #[Layout('layouts.app')] class extends Component {
                     </a>
                     <button type="submit"
                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        保存
+                        保存して構成員を追加
                     </button>
                 </div>
             </form>

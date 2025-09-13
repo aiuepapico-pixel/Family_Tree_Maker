@@ -1,21 +1,16 @@
 <?php
 
 use App\Models\FamilyTree;
+use App\Models\Person;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Rule;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component {
     public FamilyTree $familyTree;
-    public int $currentStep = 1;
-    public array $steps = [
-        1 => ['title' => '基本情報', 'description' => '氏名と性別を入力してください'],
-        2 => ['title' => '生年月日', 'description' => '生年月日と現在の状況を入力してください'],
-        3 => ['title' => '住所情報', 'description' => '現住所を入力してください'],
-        4 => ['title' => '続柄', 'description' => '被相続人との関係を入力してください'],
-    ];
+    public Person $person;
 
-    // 続柄の階層構造（基本構造）
+    // 続柄の階層構造（wizard/index.blade.phpと同じ構造）
     public array $relationshipHierarchy = [
         'spouse' => [
             'label' => '配偶者',
@@ -61,10 +56,97 @@ new #[Layout('layouts.app')] class extends Component {
         ],
     ];
 
+    // 現在の選択パス
+    public array $selectedPath = [];
+    public string $finalRelationship = '';
+
+    // 基本情報
+    #[Rule('required|string|max:100', message: '姓を入力してください')]
+    public string $family_name = '';
+
+    #[Rule('required|string|max:100', message: '名を入力してください')]
+    public string $given_name = '';
+
+    #[Rule('nullable|string|max:100', message: '姓（ひらがな）は100文字以内で入力してください')]
+    public string $family_name_kana = '';
+
+    #[Rule('nullable|string|max:100', message: '名（ひらがな）は100文字以内で入力してください')]
+    public string $given_name_kana = '';
+
+    #[Rule('required|in:male,female,unknown', message: '性別を選択してください')]
+    public string $gender = 'unknown';
+
+    // 生年月日
+    #[Rule('nullable|date', message: '有効な日付を入力してください')]
+    public ?string $birth_date = null;
+
+    #[Rule('required|boolean')]
+    public bool $is_alive = true;
+
+    #[Rule('nullable|date|required_if:is_alive,false', message: '死亡日を入力してください')]
+    public ?string $death_date = null;
+
+    // 住所情報
+    #[Rule('nullable|string|max:8', message: '郵便番号は8文字以内で入力してください')]
+    public ?string $postal_code = null;
+
+    #[Rule('nullable|string|max:255', message: '現住所は255文字以内で入力してください')]
+    public ?string $current_address = null;
+
+    #[Rule('nullable|string|max:255', message: '本籍地は255文字以内で入力してください')]
+    public ?string $registered_domicile = null;
+
+    #[Rule('nullable|string|max:255', message: '住民票住所は255文字以内で入力してください')]
+    public ?string $registered_address = null;
+
+    // 相続法上の地位
+    #[Rule('required|in:heir,renounced', message: '相続法上の地位を選択してください')]
+    public string $legal_status = 'heir';
+
+    // 続柄関連
+    #[Rule('nullable|string|max:100', message: 'その他の続柄は100文字以内で入力してください')]
+    public ?string $custom_relationship = null;
+
+    // 最終的な続柄（データベース保存用）
+    public ?string $relationship_to_deceased = null;
+
+    public function mount(FamilyTree $familyTree, Person $person): void
+    {
+        $this->authorize('update', $familyTree);
+        $this->authorize('update', $person);
+
+        $this->familyTree = $familyTree;
+        $this->person = $person;
+
+        // 既存データをフォームに設定
+        $this->family_name = $person->family_name;
+        $this->given_name = $person->given_name;
+        $this->family_name_kana = $person->family_name_kana ?? '';
+        $this->given_name_kana = $person->given_name_kana ?? '';
+        $this->gender = $person->gender;
+        $this->birth_date = $person->birth_date?->format('Y-m-d');
+        $this->is_alive = $person->is_alive;
+        $this->death_date = $person->death_date?->format('Y-m-d');
+        $this->postal_code = $person->postal_code;
+        $this->current_address = $person->current_address;
+        $this->registered_domicile = $person->registered_domicile;
+        $this->registered_address = $person->registered_address;
+        $this->legal_status = $person->legal_status;
+        $this->relationship_to_deceased = $person->relationship_to_deceased;
+
+        // 続柄の選択パスを初期化
+        $this->initializeRelationshipPath();
+    }
+
     // 既存の続柄データを取得
     public function getExistingRelationships(): array
     {
-        return $this->familyTree->people()->whereNotNull('relationship_to_deceased')->pluck('relationship_to_deceased')->toArray();
+        return $this->familyTree
+            ->people()
+            ->whereNotNull('relationship_to_deceased')
+            ->where('id', '!=', $this->person->id) // 現在編集中の人物は除外
+            ->pluck('relationship_to_deceased')
+            ->toArray();
     }
 
     // 動的に続柄選択肢を生成
@@ -136,88 +218,47 @@ new #[Layout('layouts.app')] class extends Component {
         return $options;
     }
 
-    // 現在の選択パス
-    public array $selectedPath = [];
-    public string $finalRelationship = '';
-
-    // ステップ1: 基本情報
-    #[Rule('required|string|max:100', message: '姓を入力してください')]
-    public string $family_name = '';
-
-    #[Rule('required|string|max:100', message: '名を入力してください')]
-    public string $given_name = '';
-
-    #[Rule('nullable|string|max:100', message: '姓（ひらがな）は100文字以内で入力してください')]
-    public string $family_name_kana = '';
-
-    #[Rule('nullable|string|max:100', message: '名（ひらがな）は100文字以内で入力してください')]
-    public string $given_name_kana = '';
-
-    #[Rule('required|in:male,female,unknown', message: '性別を選択してください')]
-    public string $gender = 'unknown';
-
-    // ステップ2: 生年月日
-    #[Rule('nullable|date', message: '有効な日付を入力してください')]
-    public ?string $birth_date = null;
-
-    #[Rule('required|boolean')]
-    public bool $is_alive = true;
-
-    #[Rule('nullable|date|required_if:is_alive,false', message: '死亡日を入力してください')]
-    public ?string $death_date = null;
-
-    // ステップ3: 住所情報
-    #[Rule('nullable|string|max:8', message: '郵便番号は8文字以内で入力してください')]
-    public ?string $postal_code = null;
-
-    #[Rule('nullable|string|max:255', message: '現住所は255文字以内で入力してください')]
-    public ?string $current_address = null;
-
-    // ステップ4: 続柄
-    #[Rule('required|in:heir,renounced', message: '相続法上の地位を選択してください')]
-    public string $legal_status = 'heir';
-
-    #[Rule('nullable|string|max:100', message: 'その他の続柄は100文字以内で入力してください')]
-    public ?string $custom_relationship = null;
-
-    // 最終的な続柄（データベース保存用）
-    public ?string $relationship_to_deceased = null;
-
-    public function mount(FamilyTree $familyTree): void
+    // 既存の続柄から選択パスを初期化
+    private function initializeRelationshipPath(): void
     {
-        $this->authorize('update', $familyTree);
-        $this->familyTree = $familyTree;
+        if (!$this->relationship_to_deceased) {
+            return;
+        }
 
-        // URLパラメータからステップを設定
-        if (request()->has('step')) {
-            $step = (int) request()->get('step');
-            if ($step >= 1 && $step <= count($this->steps)) {
-                $this->currentStep = $step;
+        $relationship = $this->relationship_to_deceased;
+
+        // 動的に生成された子の続柄をチェック
+        $dynamicChildOptions = $this->generateDynamicChildOptions();
+        if (in_array($relationship, $dynamicChildOptions)) {
+            $this->selectedPath = ['child', array_search($relationship, $dynamicChildOptions)];
+            $this->finalRelationship = $relationship;
+            return;
+        }
+
+        // 階層構造から検索
+        foreach ($this->relationshipHierarchy as $category => $data) {
+            if (isset($data['options'])) {
+                foreach ($data['options'] as $key => $label) {
+                    if ($label === $relationship) {
+                        $this->selectedPath = [$category, $key];
+                        $this->finalRelationship = $relationship;
+                        return;
+                    }
+                }
             }
         }
-    }
 
-    public function nextStep(): void
-    {
-        $this->validateCurrentStep();
-
-        if ($this->currentStep < count($this->steps)) {
-            $this->currentStep++;
-        }
-    }
-
-    public function previousStep(): void
-    {
-        if ($this->currentStep > 1) {
-            $this->currentStep--;
+        // その他の場合
+        if ($relationship !== 'その他') {
+            $this->custom_relationship = $relationship;
+            $this->selectedPath = ['other'];
+            $this->finalRelationship = 'その他';
         }
     }
 
     public function selectRelationship($key): void
     {
         $this->selectedPath[] = $key;
-
-        // 最終的な続柄を更新
         $this->updateFinalRelationship();
     }
 
@@ -323,44 +364,9 @@ new #[Layout('layouts.app')] class extends Component {
         return empty($current['options']);
     }
 
-    private function validateCurrentStep(): void
-    {
-        $rules = match ($this->currentStep) {
-            1 => [
-                'family_name' => 'required|string|max:100',
-                'given_name' => 'required|string|max:100',
-                'family_name_kana' => 'nullable|string|max:100',
-                'given_name_kana' => 'nullable|string|max:100',
-                'gender' => 'required|in:male,female,unknown',
-            ],
-            2 => [
-                'birth_date' => 'nullable|date',
-                'is_alive' => 'required|boolean',
-                'death_date' => 'nullable|date|required_if:is_alive,false',
-            ],
-            3 => [
-                'postal_code' => 'nullable|string|max:8',
-                'current_address' => 'nullable|string|max:255',
-            ],
-            4 => [
-                'legal_status' => 'required|in:heir,renounced',
-                'finalRelationship' => 'required|string',
-                'custom_relationship' => 'nullable|string|max:100',
-            ],
-            default => [],
-        };
-
-        $this->validate($rules);
-    }
-
     public function save(): void
     {
-        // 最後のステップでない場合は何もしない
-        if ($this->currentStep !== 4) {
-            return;
-        }
-
-        $this->validateCurrentStep();
+        $this->validate();
 
         // 続柄の値を決定
         $relationshipValue = $this->relationship_to_deceased;
@@ -368,7 +374,7 @@ new #[Layout('layouts.app')] class extends Component {
             $relationshipValue = $this->custom_relationship;
         }
 
-        $person = $this->familyTree->people()->create([
+        $this->person->update([
             'family_name' => $this->family_name,
             'given_name' => $this->given_name,
             'family_name_kana' => $this->family_name_kana,
@@ -381,87 +387,43 @@ new #[Layout('layouts.app')] class extends Component {
             'relationship_to_deceased' => $relationshipValue,
             'postal_code' => $this->postal_code,
             'current_address' => $this->current_address,
+            'registered_domicile' => $this->registered_domicile,
+            'registered_address' => $this->registered_address,
         ]);
 
-        session()->flash('success', '相続人情報を登録しました。');
+        session()->flash('success', '家族構成員の情報を更新しました。');
 
         $this->redirect(route('family-trees.show', $this->familyTree), navigate: true);
     }
 }; ?>
 
 <div>
-    <div class="max-w-3xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
         <!-- ヘッダー -->
         <div class="md:flex md:items-center md:justify-between mb-8">
             <div class="flex-1 min-w-0">
                 <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                    相続人情報の登録
+                    家族構成員の編集
                 </h2>
                 <p class="mt-1 text-sm text-gray-500">
-                    {{ $familyTree->title }}
+                    {{ $familyTree->title }} - {{ $person->full_name }}
                 </p>
             </div>
-        </div>
-
-        <!-- 進捗バー -->
-        <div class="mb-8">
-            <nav aria-label="Progress">
-                <ol role="list"
-                    class="border border-gray-300 rounded-md divide-y divide-gray-300 md:flex md:divide-y-0">
-                    @foreach ($steps as $index => $step)
-                        <li class="relative md:flex-1 md:flex">
-                            <a href="#" class="group flex items-center w-full">
-                                <span class="px-6 py-4 flex items-center text-sm font-medium">
-                                    <span
-                                        class="flex-shrink-0 w-10 h-10 flex items-center justify-center
-                                        @if ($index < $currentStep) bg-blue-600 rounded-full
-                                        @elseif($index === $currentStep)
-                                            border-2 border-blue-600 rounded-full
-                                        @else
-                                            border-2 border-gray-300 rounded-full @endif">
-                                        @if ($index < $currentStep)
-                                            <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24"
-                                                stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        @else
-                                            <span
-                                                class="{{ $index === $currentStep ? 'text-blue-600' : 'text-gray-500' }}">
-                                                {{ $index }}
-                                            </span>
-                                        @endif
-                                    </span>
-                                    <span
-                                        class="ml-4 text-sm font-medium
-                                        @if ($index < $currentStep) text-gray-900
-                                        @elseif($index === $currentStep)
-                                            text-blue-600
-                                        @else
-                                            text-gray-500 @endif">
-                                        {{ $step['title'] }}
-                                    </span>
-                                </span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ol>
-            </nav>
-        </div>
-
-        <!-- 現在のステップの説明 -->
-        <div class="mb-6">
-            <p class="text-sm text-gray-500">
-                {{ $steps[$currentStep]['description'] }}
-            </p>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <a href="{{ route('family-trees.show', $familyTree) }}"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    キャンセル
+                </a>
+            </div>
         </div>
 
         <!-- フォーム -->
         <form wire:submit="save" class="space-y-8">
             <div class="bg-white shadow sm:rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <!-- ステップ1: 基本情報 -->
-                    @if ($currentStep === 1)
+                    <!-- 基本情報 -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">基本情報</h3>
                         <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
                             <div class="sm:col-span-1">
                                 <label for="family_name" class="block text-sm font-medium text-gray-700">姓</label>
@@ -540,10 +502,11 @@ new #[Layout('layouts.app')] class extends Component {
                                 @enderror
                             </div>
                         </div>
-                    @endif
+                    </div>
 
-                    <!-- ステップ2: 生年月日 -->
-                    @if ($currentStep === 2)
+                    <!-- 生年月日 -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">生年月日</h3>
                         <div class="space-y-6">
                             <div>
                                 <label for="birth_date" class="block text-sm font-medium text-gray-700">生年月日</label>
@@ -580,10 +543,11 @@ new #[Layout('layouts.app')] class extends Component {
                                 </div>
                             @endif
                         </div>
-                    @endif
+                    </div>
 
-                    <!-- ステップ3: 住所情報 -->
-                    @if ($currentStep === 3)
+                    <!-- 住所情報 -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">住所情報</h3>
                         <div class="space-y-6">
                             <div>
                                 <label for="postal_code" class="block text-sm font-medium text-gray-700">郵便番号</label>
@@ -608,173 +572,169 @@ new #[Layout('layouts.app')] class extends Component {
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
-                        </div>
-                    @endif
 
-                    <!-- ステップ4: 続柄 -->
-                    @if ($currentStep === 4)
-                        <div class="space-y-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">相続法上の地位</label>
-                                <div class="mt-4 space-y-4">
-                                    <div class="flex items-center">
-                                        <input type="radio" wire:model="legal_status" id="legal_status_heir"
-                                            value="heir"
-                                            class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
-                                        <label for="legal_status_heir"
-                                            class="ml-3 block text-sm font-medium text-gray-700">
-                                            相続人
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="radio" wire:model="legal_status" id="legal_status_renounced"
-                                            value="renounced"
-                                            class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
-                                        <label for="legal_status_renounced"
-                                            class="ml-3 block text-sm font-medium text-gray-700">
-                                            相続放棄
-                                        </label>
-                                    </div>
+                                <label for="registered_domicile"
+                                    class="block text-sm font-medium text-gray-700">本籍地</label>
+                                <div class="mt-1">
+                                    <textarea wire:model="registered_domicile" id="registered_domicile" rows="2"
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
                                 </div>
-                                @error('legal_status')
+                                @error('registered_domicile')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">
-                                    被相続人との続柄
+                                <label for="registered_address"
+                                    class="block text-sm font-medium text-gray-700">住民票住所</label>
+                                <div class="mt-1">
+                                    <textarea wire:model="registered_address" id="registered_address" rows="2"
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                                </div>
+                                @error('registered_address')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 相続法上の地位 -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">相続法上の地位</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <input type="radio" wire:model="legal_status" id="legal_status_heir"
+                                    value="heir" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                <label for="legal_status_heir" class="ml-3 block text-sm font-medium text-gray-700">
+                                    相続人
                                 </label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" wire:model="legal_status" id="legal_status_renounced"
+                                    value="renounced"
+                                    class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                <label for="legal_status_renounced"
+                                    class="ml-3 block text-sm font-medium text-gray-700">
+                                    相続放棄
+                                </label>
+                            </div>
+                        </div>
+                        @error('legal_status')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-                                @if (!empty($selectedPath))
-                                    <div class="mt-2 mb-4">
-                                        <div class="flex items-center space-x-2 text-sm text-gray-600">
-                                            <span>選択済み:</span>
-                                            @php
-                                                $displayPath = [];
-                                                $current = $this->relationshipHierarchy;
+                    <!-- 続柄 -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">被相続人との続柄</h3>
 
-                                                // 親カテゴリのラベルを追加
-                                                if (count($selectedPath) > 0) {
-                                                    $parentKey = $selectedPath[0];
-                                                    if (isset($current[$parentKey])) {
-                                                        $displayPath[] = $current[$parentKey]['label'];
-                                                    }
+                        @if (!empty($selectedPath))
+                            <div class="mt-2 mb-4">
+                                <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                    <span>選択済み:</span>
+                                    @php
+                                        $displayPath = [];
+                                        $current = $this->relationshipHierarchy;
+
+                                        // 親カテゴリのラベルを追加
+                                        if (count($selectedPath) > 0) {
+                                            $parentKey = $selectedPath[0];
+                                            if (isset($current[$parentKey])) {
+                                                $displayPath[] = $current[$parentKey]['label'];
+                                            }
+                                        }
+
+                                        // 子の選択肢のラベルを追加
+                                        if (count($selectedPath) > 1) {
+                                            $childKey = $selectedPath[1];
+
+                                            // 子が選択された場合の動的続柄処理
+                                            if ($selectedPath[0] === 'child') {
+                                                $dynamicOptions = $this->generateDynamicChildOptions();
+                                                if (isset($dynamicOptions[$childKey])) {
+                                                    $displayPath[] = $dynamicOptions[$childKey];
                                                 }
-
-                                                // 子の選択肢のラベルを追加
-                                                if (count($selectedPath) > 1) {
-                                                    $childKey = $selectedPath[1];
-
-                                                    // 子が選択された場合の動的続柄処理
-                                                    if ($selectedPath[0] === 'child') {
-                                                        $dynamicOptions = $this->generateDynamicChildOptions();
-                                                        if (isset($dynamicOptions[$childKey])) {
-                                                            $displayPath[] = $dynamicOptions[$childKey];
-                                                        }
-                                                    } else {
-                                                        // 通常の階層構造から検索
-                                                        if (isset($current[$selectedPath[0]]['options'][$childKey])) {
-                                                            $displayPath[] =
-                                                                $current[$selectedPath[0]]['options'][$childKey];
-                                                        }
-                                                    }
+                                            } else {
+                                                // 通常の階層構造から検索
+                                                if (isset($current[$selectedPath[0]]['options'][$childKey])) {
+                                                    $displayPath[] = $current[$selectedPath[0]]['options'][$childKey];
                                                 }
-                                            @endphp
+                                            }
+                                        }
+                                    @endphp
 
-                                            @foreach ($displayPath as $index => $label)
-                                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                                    {{ $label }}
-                                                </span>
-                                                @if ($index < count($displayPath) - 1)
-                                                    <span>→</span>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-
-                                <div class="mt-4">
-                                    @if (!$this->isFinalSelection())
-                                        <div class="grid grid-cols-2 gap-3">
-                                            @foreach ($this->getCurrentOptions() as $key => $label)
-                                                <button type="button"
-                                                    wire:click="selectRelationship('{{ $key }}')"
-                                                    class="p-3 text-left border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $label }}
-                                                    </div>
-                                                </button>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
-                                            <div class="text-sm font-medium text-green-800">
-                                                選択された続柄: {{ $finalRelationship }}
-                                            </div>
-                                        </div>
-                                    @endif
+                                    @foreach ($displayPath as $index => $label)
+                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                                            {{ $label }}
+                                        </span>
+                                        @if ($index < count($displayPath) - 1)
+                                            <span>→</span>
+                                        @endif
+                                    @endforeach
                                 </div>
+                            </div>
+                        @endif
 
-                                @if ($this->canGoBack())
-                                    <div class="mt-4">
-                                        <button type="button" wire:click="goBackRelationship"
-                                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M15 19l-7-7 7-7" />
-                                            </svg>
-                                            戻る
+                        <div class="mt-4">
+                            @if (!$this->isFinalSelection())
+                                <div class="grid grid-cols-2 gap-3">
+                                    @foreach ($this->getCurrentOptions() as $key => $label)
+                                        <button type="button" wire:click="selectRelationship('{{ $key }}')"
+                                            class="p-3 text-left border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            <div class="text-sm font-medium text-gray-900">{{ $label }}
+                                            </div>
                                         </button>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                                    <div class="text-sm font-medium text-green-800">
+                                        選択された続柄: {{ $finalRelationship }}
                                     </div>
-                                @endif
+                                </div>
+                            @endif
+                        </div>
 
-                                @if ($finalRelationship === 'その他')
-                                    <div class="mt-4">
-                                        <label for="custom_relationship"
-                                            class="block text-sm font-medium text-gray-700">
-                                            その他の続柄
-                                        </label>
-                                        <div class="mt-1">
-                                            <input type="text" wire:model="custom_relationship"
-                                                id="custom_relationship"
-                                                class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                                placeholder="続柄を入力してください">
-                                        </div>
-                                        @error('custom_relationship')
-                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-                                @endif
+                        @if ($this->canGoBack())
+                            <div class="mt-4">
+                                <button type="button" wire:click="goBackRelationship"
+                                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    戻る
+                                </button>
+                            </div>
+                        @endif
 
-                                @error('finalRelationship')
+                        @if ($finalRelationship === 'その他')
+                            <div class="mt-4">
+                                <label for="custom_relationship" class="block text-sm font-medium text-gray-700">
+                                    その他の続柄
+                                </label>
+                                <div class="mt-1">
+                                    <input type="text" wire:model="custom_relationship" id="custom_relationship"
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                        placeholder="続柄を入力してください">
+                                </div>
+                                @error('custom_relationship')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
-                        </div>
-                    @endif
+                        @endif
+                    </div>
                 </div>
             </div>
 
-            <!-- ナビゲーションボタン -->
-            <div class="flex justify-between">
-                <button type="button" wire:click="previousStep"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    @if ($currentStep === 1) disabled @endif>
-                    前へ
+            <!-- 保存ボタン -->
+            <div class="flex justify-end">
+                <button type="submit"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    更新
                 </button>
-
-                @if ($currentStep < count($steps))
-                    <button type="button" wire:click="nextStep"
-                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        次へ
-                    </button>
-                @else
-                    <button type="submit"
-                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        相続人を登録
-                    </button>
-                @endif
             </div>
         </form>
     </div>
