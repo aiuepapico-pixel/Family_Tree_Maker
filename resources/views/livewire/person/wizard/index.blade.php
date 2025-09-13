@@ -59,6 +59,10 @@ new #[Layout('layouts.app')] class extends Component {
                 'younger_sister' => '妹',
             ],
         ],
+        'deceased_child_spouse' => [
+            'label' => '死亡した子の配偶者',
+            'options' => [],
+        ],
         'other' => [
             'label' => 'その他',
             'options' => [],
@@ -253,6 +257,77 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         return $options;
+    }
+
+    // 死亡した子どもの配偶者の選択肢を生成
+    public function generateDeceasedChildSpouseOptions(): array
+    {
+        $deceasedChildren = $this->familyTree
+            ->people()
+            ->where('is_alive', false)
+            ->whereNotNull('relationship_to_deceased')
+            ->whereIn('relationship_to_deceased', ['長男', '二男', '三男', '四男', '五男', '六男', '七男', '八男', '九男', '長女', '二女', '三女', '四女', '五女', '六女', '七女', '八女', '九女', '養子'])
+            ->get()
+            ->map(function ($person) {
+                return [
+                    'id' => $person->id,
+                    'name' => $person->full_name,
+                    'relationship' => $person->relationship_to_deceased,
+                    'gender' => $person->gender,
+                ];
+            })
+            ->toArray();
+
+        $options = [];
+        foreach ($deceasedChildren as $child) {
+            $key = 'deceased_child_spouse_of_' . $child['id'];
+            $label = $child['name'] . '（' . $child['relationship'] . '）の配偶者';
+            $options[$key] = $label;
+        }
+
+        return $options;
+    }
+
+    // 死亡した子どもの配偶者の具体的な続柄選択肢を生成
+    public function generateDeceasedChildSpouseRelationshipOptions($childId): array
+    {
+        $deceasedChild = $this->familyTree->people()->where('id', $childId)->where('is_alive', false)->first();
+
+        if (!$deceasedChild) {
+            return [];
+        }
+
+        $options = [];
+
+        // 死亡した子どもの性別に応じて配偶者の選択肢を生成
+        if ($deceasedChild->gender === 'male') {
+            $options['wife'] = '妻';
+        } elseif ($deceasedChild->gender === 'female') {
+            $options['husband'] = '夫';
+        } else {
+            // 性別不明の場合は両方の選択肢を表示
+            $options['wife'] = '妻';
+            $options['husband'] = '夫';
+        }
+
+        return $options;
+    }
+
+    // 死亡した子どもの情報を取得
+    private function getDeceasedChildInfo($childId): array
+    {
+        $deceasedChild = $this->familyTree->people()->where('id', $childId)->where('is_alive', false)->first();
+
+        if (!$deceasedChild) {
+            return [];
+        }
+
+        return [
+            'id' => $deceasedChild->id,
+            'name' => $deceasedChild->full_name,
+            'relationship' => $deceasedChild->relationship_to_deceased,
+            'gender' => $deceasedChild->gender,
+        ];
     }
 
     // 死亡した相続人の子の具体的な続柄選択肢を生成
@@ -528,6 +603,37 @@ new #[Layout('layouts.app')] class extends Component {
             }
         }
 
+        // 死亡した子どもの配偶者が選択された場合の動的続柄処理
+        if ($this->selectedPath[0] === 'deceased_child_spouse' && count($this->selectedPath) > 1) {
+            $spouseKey = $this->selectedPath[1];
+
+            // 死亡した子どもが選択された場合（まだ具体的な配偶者種別を選択していない）
+            if (str_starts_with($spouseKey, 'deceased_child_spouse_of_') && count($this->selectedPath) === 2) {
+                $childId = (int) str_replace('deceased_child_spouse_of_', '', $spouseKey);
+                $childInfo = $this->getDeceasedChildInfo($childId);
+
+                if (!empty($childInfo)) {
+                    $this->finalRelationship = $childInfo['name'] . '（' . $childInfo['relationship'] . '）の配偶者';
+                    $this->relationship_to_deceased = null; // まだ最終的な続柄ではない
+                }
+                return;
+            } elseif (count($this->selectedPath) > 2) {
+                // 具体的な配偶者種別が選択された場合（妻、夫）
+                $childId = (int) str_replace('deceased_child_spouse_of_', '', $this->selectedPath[1]);
+                $spouseTypeKey = $this->selectedPath[2];
+                $spouseOptions = $this->generateDeceasedChildSpouseRelationshipOptions($childId);
+
+                if (isset($spouseOptions[$spouseTypeKey])) {
+                    $childInfo = $this->getDeceasedChildInfo($childId);
+                    if (!empty($childInfo)) {
+                        $this->finalRelationship = $childInfo['name'] . '（' . $childInfo['relationship'] . '）の' . $spouseOptions[$spouseTypeKey];
+                        $this->relationship_to_deceased = $this->finalRelationship;
+                    }
+                    return;
+                }
+            }
+        }
+
         $path = $this->selectedPath;
         $current = $this->relationshipHierarchy;
 
@@ -561,6 +667,11 @@ new #[Layout('layouts.app')] class extends Component {
                 $options['grandchild'] = '孫';
             }
 
+            // 死亡した子どもがいる場合は死亡した子どもの配偶者を追加
+            if (!empty($this->generateDeceasedChildSpouseOptions())) {
+                $options['deceased_child_spouse'] = '死亡した子の配偶者';
+            }
+
             return $options;
         }
 
@@ -578,6 +689,17 @@ new #[Layout('layouts.app')] class extends Component {
             }
             // 死亡した相続人のリストを表示
             return $this->generateGrandchildOptions();
+        }
+
+        // 死亡した子どもの配偶者が選択された場合は動的に選択肢を生成
+        if ($this->selectedPath[0] === 'deceased_child_spouse') {
+            // 死亡した子どもが選択されている場合は、具体的な配偶者種別を表示
+            if (count($this->selectedPath) > 1) {
+                $childId = (int) str_replace('deceased_child_spouse_of_', '', $this->selectedPath[1]);
+                return $this->generateDeceasedChildSpouseRelationshipOptions($childId);
+            }
+            // 死亡した子どものリストを表示
+            return $this->generateDeceasedChildSpouseOptions();
         }
 
         $current = $this->relationshipHierarchy;
@@ -620,6 +742,21 @@ new #[Layout('layouts.app')] class extends Component {
 
         // 孫が選択されたが、まだ具体的な死亡相続人を選択していない場合は最終選択ではない
         if ($this->selectedPath[0] === 'grandchild' && count($this->selectedPath) === 1) {
+            return false;
+        }
+
+        // 死亡した子どもの配偶者が選択された場合の動的続柄処理
+        if ($this->selectedPath[0] === 'deceased_child_spouse' && count($this->selectedPath) > 2) {
+            return true; // 死亡した子どもの配偶者の具体的な種別選択は最終選択
+        }
+
+        // 死亡した子どもが選択されたが、まだ具体的な配偶者種別を選択していない場合は最終選択ではない
+        if ($this->selectedPath[0] === 'deceased_child_spouse' && count($this->selectedPath) === 2) {
+            return false;
+        }
+
+        // 死亡した子どもの配偶者が選択されたが、まだ具体的な死亡した子どもを選択していない場合は最終選択ではない
+        if ($this->selectedPath[0] === 'deceased_child_spouse' && count($this->selectedPath) === 1) {
             return false;
         }
 
@@ -1025,6 +1162,36 @@ new #[Layout('layouts.app')] class extends Component {
                                                                     $heirRelationship .
                                                                     '）の' .
                                                                     $relationshipOptions[$childKey];
+                                                            }
+                                                        }
+                                                    } elseif ($selectedPath[0] === 'deceased_child_spouse') {
+                                                        // 死亡した子どもの配偶者が選択された場合の動的続柄処理
+                                                        if (str_starts_with($childKey, 'deceased_child_spouse_of_')) {
+                                                            // 死亡した子どもが選択された場合
+                                                            $dynamicOptions = $this->generateDeceasedChildSpouseOptions();
+                                                            if (isset($dynamicOptions[$childKey])) {
+                                                                $displayPath[] = $dynamicOptions[$childKey];
+                                                            }
+                                                        } else {
+                                                            // 具体的な配偶者種別が選択された場合
+                                                            $childId = (int) str_replace(
+                                                                'deceased_child_spouse_of_',
+                                                                '',
+                                                                $selectedPath[1],
+                                                            );
+                                                            $spouseOptions = $this->generateDeceasedChildSpouseRelationshipOptions(
+                                                                $childId,
+                                                            );
+                                                            if (isset($spouseOptions[$childKey])) {
+                                                                $childInfo = $this->getDeceasedChildInfo($childId);
+                                                                if (!empty($childInfo)) {
+                                                                    $displayPath[] =
+                                                                        $childInfo['name'] .
+                                                                        '（' .
+                                                                        $childInfo['relationship'] .
+                                                                        '）の' .
+                                                                        $spouseOptions[$childKey];
+                                                                }
                                                             }
                                                         }
                                                     } else {
