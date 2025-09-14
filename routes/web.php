@@ -25,6 +25,10 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('family-trees/{familyTree}/edit', 'family-tree/edit')->name('family-trees.edit');
     Volt::route('family-trees/{familyTree}/visual', 'family-tree/visual')->name('family-trees.visual');
 
+    // PDF出力
+    Route::get('family-trees/{familyTree}/pdf', [App\Http\Controllers\FamilyTreePdfController::class, 'exportInheritanceDiagram'])
+        ->name('family-trees.pdf');
+
     // 人物追加ウィザード
     // 被相続人専用ウィザード
     Volt::route("family-trees/{familyTree}/deceased-person/wizard", "deceased-person/wizard/index")
