@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Helpers\InheritanceDiagramHelper;
+use App\Helpers\SvgToImageHelper;
 use App\Models\FamilyTree;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -21,6 +23,12 @@ class FamilyTreePdfController extends Controller
         $deceasedPerson = $familyTree->people()->where('id', $familyTree->deceased_person_id)->first();
         $heirs = $familyTree->people()->where('id', '!=', $familyTree->deceased_person_id)->orderBy('birth_date')->get();
 
+        // SVGコンテンツを生成
+        $svgContent = SvgToImageHelper::generateFamilyTreeSvg($familyTree, $people, $relationships, $deceasedPerson, $heirs);
+
+        // SVGを画像に変換
+        $imageDataUri = SvgToImageHelper::convertSvgToImage($svgContent, 1400, 800);
+
         // PDF用のビューにデータを渡す
         $pdf = Pdf::loadView('pdf.inheritance-diagram', [
             'familyTree' => $familyTree,
@@ -28,6 +36,8 @@ class FamilyTreePdfController extends Controller
             'relationships' => $relationships,
             'deceasedPerson' => $deceasedPerson,
             'heirs' => $heirs,
+            'helper' => new InheritanceDiagramHelper(),
+            'svgImageData' => $imageDataUri,
         ]);
 
         // PDFの設定
@@ -36,6 +46,9 @@ class FamilyTreePdfController extends Controller
             'isHtml5ParserEnabled' => true,
             'isRemoteEnabled' => true,
             'isPhpEnabled' => true,
+            'isFontSubsettingEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'isUnicode' => true,
         ]);
 
         // ファイル名を生成

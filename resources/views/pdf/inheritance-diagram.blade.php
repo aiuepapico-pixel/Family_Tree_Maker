@@ -34,64 +34,21 @@
 
         .diagram-container {
             width: 100%;
-            height: 600px;
+            height: 500px;
             border: 1px solid #D1D5DB;
             background-color: white;
             position: relative;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .person-info {
-            position: absolute;
-            background-color: white;
-            border: 1px solid #D1D5DB;
-            border-radius: 4px;
-            padding: 8px;
-            font-size: 12px;
-            min-width: 120px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .deceased-person {
-            background-color: #FEF2F2;
-            border-color: #FCA5A5;
-        }
-
-        .heir-person {
-            background-color: #F0FDF4;
-            border-color: #86EFAC;
-        }
-
-        .person-name {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .person-details {
-            font-size: 10px;
-            color: #6B7280;
-            line-height: 1.3;
-        }
-
-        .relationship-line {
-            position: absolute;
-            background-color: #374151;
-            z-index: 1;
-        }
-
-        .spouse-line {
-            height: 3px;
-        }
-
-        .parent-child-line {
-            height: 2px;
-        }
-
-        .adopted-line {
-            height: 2px;
-            border-top: 2px dashed #6B7280;
-            background-color: transparent;
+        .diagram-image {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
         }
 
         .legend {
@@ -151,145 +108,12 @@
     </div>
 
     <div class="diagram-container">
-        @php
-            // 被相続人の位置
-            $deceasedX = 100;
-            $deceasedY = 200;
-
-            // 相続人の位置計算
-            $heirPositions = [];
-            $spouses = $heirs->filter(function ($heir) {
-                return $heir->relationship_to_deceased &&
-                    (str_contains($heir->relationship_to_deceased, '配偶者') ||
-                        str_contains($heir->relationship_to_deceased, '妻') ||
-                        str_contains($heir->relationship_to_deceased, '夫'));
-            });
-
-            $children = $heirs->filter(function ($heir) {
-                return !$heir->relationship_to_deceased ||
-                    (!str_contains($heir->relationship_to_deceased, '配偶者') &&
-                        !str_contains($heir->relationship_to_deceased, '妻') &&
-                        !str_contains($heir->relationship_to_deceased, '夫'));
-            });
-
-            // 配偶者の位置
-            foreach ($spouses as $index => $spouse) {
-                $heirPositions[$spouse->id] = [
-                    'x' => $deceasedX,
-                    'y' => $deceasedY + 150 + $index * 100,
-                    'type' => 'spouse',
-                ];
-            }
-
-            // 子の位置
-            $childrenCount = $children->count();
-            $childrenStartX = $deceasedX + 200;
-            $childrenStartY = $deceasedY;
-
-            foreach ($children as $index => $child) {
-                $heirPositions[$child->id] = [
-                    'x' => $childrenStartX + $index * 150,
-                    'y' => $childrenStartY + ($index % 2) * 100,
-                    'type' => 'child',
-                ];
-            }
-        @endphp
-
-        <!-- 被相続人 -->
-        @if ($deceasedPerson)
-            <div class="person-info deceased-person" style="left: {{ $deceasedX }}px; top: {{ $deceasedY }}px;">
-                <div class="person-name">{{ $deceasedPerson->full_name }}</div>
-                <div class="person-details">
-                    @if ($deceasedPerson->birth_date)
-                        出生 {{ $deceasedPerson->birth_date->format('Y年m月d日') }}<br>
-                    @endif
-                    @if ($deceasedPerson->death_date)
-                        死亡 {{ $deceasedPerson->death_date->format('Y年m月d日') }}<br>
-                    @endif
-                    @if ($deceasedPerson->current_address)
-                        住所 {{ Str::limit($deceasedPerson->current_address, 30) }}<br>
-                    @endif
-                    @if ($deceasedPerson->registered_domicile)
-                        本籍 {{ Str::limit($deceasedPerson->registered_domicile, 30) }}<br>
-                    @endif
-                    <strong>(被相続人)</strong>
-                </div>
+        @if (isset($svgImageData))
+            <img src="{{ $svgImageData }}" alt="相続関係説明図" class="diagram-image" />
+        @else
+            <div style="text-align: center; color: #6B7280; font-size: 14px;">
+                図の生成中にエラーが発生しました。
             </div>
-        @endif
-
-        <!-- 相続人 -->
-        @foreach ($heirs as $heir)
-            @if (isset($heirPositions[$heir->id]))
-                @php
-                    $pos = $heirPositions[$heir->id];
-                @endphp
-                <div class="person-info heir-person" style="left: {{ $pos['x'] }}px; top: {{ $pos['y'] }}px;">
-                    <div class="person-name">{{ $heir->full_name }}</div>
-                    <div class="person-details">
-                        @if ($heir->birth_date)
-                            出生 {{ $heir->birth_date->format('Y年m月d日') }}<br>
-                        @endif
-                        @if ($heir->current_address)
-                            住所 {{ Str::limit($heir->current_address, 30) }}<br>
-                        @endif
-                        @if ($heir->relationship_to_deceased)
-                            <strong>{{ $heir->relationship_to_deceased }}</strong><br>
-                        @endif
-                        <strong>(相続人)</strong>
-                    </div>
-                </div>
-            @endif
-        @endforeach
-
-        <!-- 関係線 -->
-        @if ($deceasedPerson)
-            <!-- 配偶者への関係線 -->
-            @foreach ($spouses as $spouse)
-                @if (isset($heirPositions[$spouse->id]))
-                    @php
-                        $spousePos = $heirPositions[$spouse->id];
-                    @endphp
-                    <!-- 二重線（配偶者関係） -->
-                    <div class="relationship-line spouse-line"
-                        style="left: {{ $deceasedX + 60 }}px; top: {{ $deceasedY + 40 }}px; 
-                                width: {{ abs($spousePos['x'] - $deceasedX) }}px; 
-                                transform: rotate({{ (atan2($spousePos['y'] - $deceasedY, $spousePos['x'] - $deceasedX) * 180) / pi() }}deg);">
-                    </div>
-                @endif
-            @endforeach
-
-            <!-- 子への関係線 -->
-            @if ($children->count() > 0)
-                @php
-                    $branchX = $deceasedX + 100;
-                    $branchY = $deceasedY + 40;
-                @endphp
-
-                <!-- 被相続人から分岐点への線 -->
-                <div class="relationship-line parent-child-line"
-                    style="left: {{ $deceasedX + 60 }}px; top: {{ $branchY }}px; width: 40px;">
-                </div>
-
-                <!-- 各子への枝分かれ線 -->
-                @foreach ($children as $child)
-                    @if (isset($heirPositions[$child->id]))
-                        @php
-                            $childPos = $heirPositions[$child->id];
-                            $isAdopted =
-                                $child->relationship_to_deceased &&
-                                (str_contains($child->relationship_to_deceased, '養子') ||
-                                    str_contains($child->relationship_to_deceased, '養女'));
-                        @endphp
-
-                        <!-- 分岐点から子への線 -->
-                        <div class="relationship-line {{ $isAdopted ? 'adopted-line' : 'parent-child-line' }}"
-                            style="left: {{ $branchX }}px; top: {{ $branchY }}px; 
-                                    width: {{ abs($childPos['x'] - $branchX) }}px; 
-                                    transform: rotate({{ (atan2($childPos['y'] - $branchY, $childPos['x'] - $branchX) * 180) / pi() }}deg);">
-                        </div>
-                    @endif
-                @endforeach
-            @endif
         @endif
     </div>
 
