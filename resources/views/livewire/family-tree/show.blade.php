@@ -324,8 +324,8 @@ new #[Layout('layouts.app')] class extends Component {
                 <div class="mt-4 flex items-center space-x-4">
                     <span
                         class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        @if ($familyTree->status === 'completed') bg-green-100 text-green-800
-                        @elseif($familyTree->status === 'active') bg-blue-100 text-blue-800
+                        @if ($familyTree->status === 'completed') bg-gray-200 text-gray-800
+                        @elseif($familyTree->status === 'active') bg-gray-300 text-gray-800
                         @else bg-gray-100 text-gray-800 @endif">
                         {{ match ($familyTree->status) {
                             'completed' => '完了',
@@ -348,25 +348,25 @@ new #[Layout('layouts.app')] class extends Component {
 
             <!-- 被相続人表示エリア -->
             @if ($deceasedPerson)
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+                <div class="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
                     <div class="flex justify-between items-center">
                         <div>
-                            <h2 class="text-lg font-medium text-red-900">被相続人</h2>
-                            <p class="text-sm text-red-600">この家系図の被相続人（故人）</p>
+                            <h2 class="text-lg font-medium text-gray-900">被相続人</h2>
+                            <p class="text-sm text-gray-600">この家系図の被相続人（故人）</p>
                         </div>
                         <div class="flex space-x-2">
                             <a href="{{ route('deceased-person.edit', $familyTree) }}"
-                                class="inline-flex items-center px-3 py-1 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50">
+                                class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 編集
                             </a>
                         </div>
                     </div>
                     <div class="mt-4">
-                        <div class="bg-white border border-red-200 rounded-lg p-4">
+                        <div class="bg-white border border-gray-300 rounded-lg p-4">
                             <div class="flex items-center space-x-4">
                                 <div class="flex-shrink-0">
-                                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                        <span class="text-red-600 font-medium text-lg">
+                                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                                        <span class="text-gray-600 font-medium text-lg">
                                             {{ mb_substr($deceasedPerson->family_name, 0, 1) }}
                                         </span>
                                     </div>
@@ -402,14 +402,14 @@ new #[Layout('layouts.app')] class extends Component {
                     </div>
                 </div>
             @else
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                <div class="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
                     <div class="flex justify-between items-center">
                         <div>
-                            <h2 class="text-lg font-medium text-yellow-900">被相続人が未設定</h2>
-                            <p class="text-sm text-yellow-600">まず被相続人を登録してください</p>
+                            <h2 class="text-lg font-medium text-gray-900">被相続人が未設定</h2>
+                            <p class="text-sm text-gray-600">まず被相続人を登録してください</p>
                         </div>
                         <a href="{{ route('deceased-person.wizard', $familyTree) }}"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900">
                             被相続人を登録
                         </a>
                     </div>
@@ -448,7 +448,7 @@ new #[Layout('layouts.app')] class extends Component {
                                             </div>
                                             <span
                                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if ($person->is_alive) bg-green-100 text-green-800 @else bg-gray-100 text-gray-800 @endif">
+                                            @if ($person->is_alive) bg-gray-200 text-gray-800 @else bg-gray-100 text-gray-800 @endif">
                                                 {{ $person->is_alive ? '生存' : '死亡' }}
                                             </span>
                                         </div>
@@ -474,11 +474,11 @@ new #[Layout('layouts.app')] class extends Component {
                                         </div>
                                         <div class="mt-2 flex space-x-2">
                                             <a href="{{ route('persons.edit', ['familyTree' => $familyTree, 'person' => $person]) }}"
-                                                class="text-xs text-blue-600 hover:text-blue-900">
+                                                class="text-xs text-gray-600 hover:text-gray-900">
                                                 編集
                                             </a>
                                             <button wire:click="confirmDelete({{ $person->id }})"
-                                                class="text-xs text-red-600 hover:text-red-900">
+                                                class="text-xs text-gray-600 hover:text-gray-900">
                                                 削除
                                             </button>
                                         </div>
@@ -560,8 +560,8 @@ new #[Layout('layouts.app')] class extends Component {
             wire:click="cancelDelete">
             <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" wire:click.stop>
                 <div class="mt-3 text-center">
-                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">
+                        <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                         </svg>
@@ -574,7 +574,7 @@ new #[Layout('layouts.app')] class extends Component {
                     </div>
                     <div class="items-center px-4 py-3">
                         <button wire:click="deletePerson"
-                            class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                            class="px-4 py-2 bg-gray-600 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
                             削除
                         </button>
                         <button wire:click="cancelDelete"
@@ -589,7 +589,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     <!-- 成功メッセージ -->
     @if (session('success'))
-        <div class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50"
+        <div class="fixed top-4 right-4 bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded z-50"
             x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)">
             {{ session('success') }}
         </div>
@@ -597,7 +597,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     <!-- エラーメッセージ -->
     @error('delete')
-        <div class="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50"
+        <div class="fixed top-4 right-4 bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded z-50"
             x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)">
             {{ $message }}
         </div>
