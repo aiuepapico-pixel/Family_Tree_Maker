@@ -299,6 +299,40 @@ new #[Layout('layouts.app')] class extends Component {
     }
 
     /**
+     * 相続の意思表示を表示用に変換するメソッド
+     */
+    public function getInheritanceIntentionDisplay($inheritanceIntentions): string
+    {
+        if (empty($inheritanceIntentions)) {
+            return '(相続人)'; // デフォルトは相続人
+        }
+
+        // 文字列の場合は配列に変換
+        if (is_string($inheritanceIntentions)) {
+            $intentions = json_decode($inheritanceIntentions, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // JSONデコードに失敗した場合は、文字列をそのまま使用
+                $intentions = [$inheritanceIntentions];
+            }
+        } else {
+            $intentions = $inheritanceIntentions;
+        }
+
+        if (empty($intentions) || !is_array($intentions)) {
+            return '(相続人)'; // デフォルトは相続人
+        }
+
+        $intention = $intentions[0]; // 最初の意思表示を使用
+
+        return match ($intention) {
+            'accept' => '(相続人)',
+            'split' => '(分割)',
+            'renounce' => '(相続放棄)',
+            default => '(相続人)',
+        };
+    }
+
+    /**
      * 相続関係説明図用の関係線のスタイルを取得
      */
     public function getRelationshipStyle($relationship): array
@@ -722,11 +756,11 @@ new #[Layout('layouts.app')] class extends Component {
                                     @php $yOffset += 15; @endphp
                                 @endif
 
-                                <!-- (配偶者) -->
+                                <!-- 相続の意思表示 -->
                                 <text x="{{ $position['x'] }}" y="{{ $position['y'] + $yOffset }}" text-anchor="left"
                                     class="text-xs fill-gray-600 cursor-pointer hover:opacity-80"
                                     onclick="selectPerson({{ $heir->id }})">
-                                    (相続人)
+                                    {{ $this->getInheritanceIntentionDisplay($heir->inheritance_intentions) }}
                                 </text>
                                 @php $yOffset += 15; @endphp
 
@@ -784,11 +818,11 @@ new #[Layout('layouts.app')] class extends Component {
                                     @php $yOffset += 15; @endphp
                                 @endif
 
-                                <!-- (相続人) -->
+                                <!-- 相続の意思表示 -->
                                 <text x="{{ $position['x'] }}" y="{{ $position['y'] + $yOffset }}" text-anchor="left"
                                     class="text-xs fill-gray-600 cursor-pointer hover:opacity-80"
                                     onclick="selectPerson({{ $heir->id }})">
-                                    (相続人)
+                                    {{ $this->getInheritanceIntentionDisplay($heir->inheritance_intentions) }}
                                 </text>
                                 @php $yOffset += 15; @endphp
 
@@ -1018,8 +1052,16 @@ new #[Layout('layouts.app')] class extends Component {
                                         <div
                                             class="w-4 h-4 rounded-full {{ $heir->is_alive ? 'bg-gray-600' : 'bg-gray-400' }} shadow-sm">
                                         </div>
-                                        <h4 class="text-sm font-bold text-gray-800 break-words">
-                                            {{ $heir->full_name }}</h4>
+                                        <div>
+                                            <h4 class="text-sm font-bold text-gray-800 break-words">
+                                                {{ $heir->full_name }}
+                                            </h4>
+                                            @if ($heir->inheritance_intentions)
+                                                <span class="text-xs text-blue-600 font-medium">
+                                                    {{ $this->getInheritanceIntentionDisplay($heir->inheritance_intentions) }}
+                                                </span>
+                                            @endif
+                                        </div>
                                     </div>
 
                                     <!-- 相続人の氏名 -->

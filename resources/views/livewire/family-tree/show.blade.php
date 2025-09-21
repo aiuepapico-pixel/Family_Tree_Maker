@@ -100,6 +100,38 @@ new #[Layout('layouts.app')] class extends Component {
         return $relationship;
     }
 
+    // 相続の意思表示を表示用に変換するメソッド
+    public function getInheritanceIntentionDisplay($inheritanceIntentions): string
+    {
+        if (empty($inheritanceIntentions)) {
+            return '';
+        }
+
+        // 文字列の場合は配列に変換
+        if (is_string($inheritanceIntentions)) {
+            $intentions = json_decode($inheritanceIntentions, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // JSONデコードに失敗した場合は、文字列をそのまま使用
+                $intentions = [$inheritanceIntentions];
+            }
+        } else {
+            $intentions = $inheritanceIntentions;
+        }
+
+        if (empty($intentions) || !is_array($intentions)) {
+            return '';
+        }
+
+        $intention = $intentions[0]; // 最初の意思表示を使用
+
+        return match ($intention) {
+            'accept' => '(相続人)',
+            'split' => '(分割)',
+            'renounce' => '(相続放棄)',
+            default => '',
+        };
+    }
+
     // 動的に子の続柄選択肢を生成（wizard/index.blade.phpと同じロジック）
     public function generateDynamicChildOptions(): array
     {
@@ -443,6 +475,11 @@ new #[Layout('layouts.app')] class extends Component {
                                             <div>
                                                 <h4 class="text-lg font-medium text-gray-900">
                                                     {{ $person->full_name }}
+                                                    @if ($person->inheritance_intentions)
+                                                        <span class="ml-2 text-sm font-normal text-blue-600">
+                                                            {{ $this->getInheritanceIntentionDisplay($person->inheritance_intentions) }}
+                                                        </span>
+                                                    @endif
                                                 </h4>
                                                 <p class="text-sm text-gray-500">{{ $person->full_name_kana }}</p>
                                             </div>
