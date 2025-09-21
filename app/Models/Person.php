@@ -29,6 +29,7 @@ class Person extends Model
         'position_x',
         'position_y',
         'notes',
+        'inheritance_intentions',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class Person extends Model
         'is_alive' => 'boolean',
         'position_x' => 'decimal:2',
         'position_y' => 'decimal:2',
+        'inheritance_intentions' => 'array',
     ];
 
     // ルートキー名を明示的に設定

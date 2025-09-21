@@ -492,6 +492,17 @@ new #[Layout('layouts.app')] class extends Component {
     #[Rule('nullable|string|max:100', message: 'その他の続柄は100文字以内で入力してください')]
     public ?string $custom_relationship = null;
 
+    // 相続の意思表示
+    #[Rule('required|array', message: '相続の意思表示を選択してください')]
+    public array $inheritance_intentions = [];
+
+    // 相続の意思表示オプション
+    public array $inheritance_intention_options = [
+        'accept' => '相続する',
+        'split' => '分割する',
+        'renounce' => '相続放棄する',
+    ];
+
     // 最終的な続柄（データベース保存用）
     public ?string $relationship_to_deceased = null;
 
@@ -795,6 +806,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'legal_status' => 'required|in:heir,renounced',
                 'finalRelationship' => 'required|string',
                 'custom_relationship' => 'nullable|string|max:100',
+                'inheritance_intentions' => 'required|array|min:1',
             ],
             default => [],
         };
@@ -830,6 +842,7 @@ new #[Layout('layouts.app')] class extends Component {
             'relationship_to_deceased' => $relationshipValue,
             'postal_code' => $this->postal_code,
             'current_address' => $this->current_address,
+            'inheritance_intentions' => json_encode($this->inheritance_intentions),
         ]);
 
         session()->flash('success', '相続人情報を登録しました。');
@@ -1278,6 +1291,47 @@ new #[Layout('layouts.app')] class extends Component {
                                 @error('finalRelationship')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
+                            </div>
+
+                            <!-- 相続の意思表示 -->
+                            <div class="mt-8">
+                                <label class="block text-sm font-medium text-gray-700 mb-4">
+                                    相続の意思表示
+                                </label>
+                                <div class="space-y-3">
+                                    @foreach ($inheritance_intention_options as $key => $label)
+                                        <div class="flex items-center">
+                                            <input type="checkbox" wire:model="inheritance_intentions"
+                                                value="{{ $key }}"
+                                                id="inheritance_intention_{{ $key }}"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                            <label for="inheritance_intention_{{ $key }}"
+                                                class="ml-3 block text-sm font-medium text-gray-700">
+                                                {{ $label }}
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                @error('inheritance_intentions')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+
+                                <!-- 選択された意思表示の表示 -->
+                                @if (!empty($inheritance_intentions))
+                                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div class="text-sm font-medium text-blue-800 mb-2">
+                                            選択された意思表示:
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach ($inheritance_intentions as $intention)
+                                                <span
+                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    {{ $inheritance_intention_options[$intention] ?? $intention }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endif
